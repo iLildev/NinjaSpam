@@ -1,19 +1,15 @@
 """
-plugins/bans.py — Ban, kick, temporary-ban, and unban command handlers.
+plugins/bans.py — الحظر والطرد وإلغاء الحظر.
 
-Commands:
-  /ban   [user] [reason]        — Permanently ban a user from the group.
-  /ban   -clean [user] [reason] — Ban + delete ALL recent messages from user.
-  /tban  [user] <time> [reason] — Temporarily ban (10m / 2h / 3d).
-  /kick  [user] [reason]        — Remove the user (can rejoin; no ban record).
-  /kickme                       — Allow a regular member to kick themselves.
-  /unban [user]                 — Lift an active ban (only if user is absent).
+الأوامر:
+  /ban   [مستخدم] [سبب]         — حظر دائم.
+  /ban   -clean [مستخدم] [سبب] — حظر + حذف رسائله الأخيرة.
+  /tban  [مستخدم] <مدة> [سبب]  — حظر مؤقت (10m / 2h / 3d).
+  /kick  [مستخدم] [سبب]        — طرد (يمكنه العودة).
+  /kickme                        — طرد الذات.
+  /unban [مستخدم]               — رفع الحظر.
 
-Aggressive cleanup (-clean flag, TG-spam inspired):
-  /ban -clean @user  — Uses Telegram's revoke_messages=True which deletes
-  all messages sent by the user in the last 48 hours before the ban.
-
-All actions are logged to the configured log channel via @loggable.
+جميع الإجراءات تُسجَّل في قناة السجلات عبر @loggable.
 """
 
 from __future__ import annotations
@@ -38,25 +34,15 @@ from core.helpers.chat_status import (
 )
 from core.helpers.extraction import extract_user_and_text
 from core.helpers.string_handling import extract_time
-from core.i18n import get_chat_lang, t
+from core.i18n import t
 from core.log_channel import loggable
+from db.repositories import bans as bans_repo
 
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Helper — resolve a user display name for response messages
-# ---------------------------------------------------------------------------
-
-async def _user_mention(user_id: int, update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """
-    Return an HTML mention for the target user.
-
-    Resolution order:
-    1. reply_to_message.from_user (already in memory, no API call)
-    2. context.bot.get_chat(user_id) (one API call)
-    3. Fallback: bare ID wrapped in tg:// link
-    """
+async def _mention(user_id: int, update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """أرجع HTML mention للمستخدم."""
     msg = update.effective_message
     if msg and msg.reply_to_message and msg.reply_to_message.from_user:
         u = msg.reply_to_message.from_user
@@ -70,409 +56,253 @@ async def _user_mention(user_id: int, update: Update, context: ContextTypes.DEFA
         return f'<a href="tg://user?id={user_id}">{user_id}</a>'
 
 
-# ---------------------------------------------------------------------------
-# /ban — permanent ban
-# ---------------------------------------------------------------------------
-
 @user_admin
 @bot_admin
 @can_restrict
 @loggable
-async def ban(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> Optional[str]:
-    """
-    Permanently ban a user from the group.
-
-    Usage:
-        /ban @username [reason]
-        /ban <reply> [reason]
-        /ban <user_id> [reason]
-    """
+async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     chat: Chat = update.effective_chat
     message = update.effective_message
     user = update.effective_user
-
     user_id, reason = await extract_user_and_text(update, context)
-    lang = await get_chat_lang(chat.id)
 
     if not user_id:
-        await message.reply_text(t("ban_missing_target", lang))
+        await message.reply_text(t("ban_missing_target"))
         return None
-
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text(t("ban_admin", lang))
+        await message.reply_text(t("ban_admin"))
         return None
-
     if user_id == context.bot.id:
-        await message.reply_text("🙃 Nice try.")
+        await message.reply_text("🙃 لا.")
         return None
 
-    # Detect -clean flag: /ban -clean @user or the reason starts with -clean
-    clean_mode: bool = False
-    if reason and reason.strip().startswith("-clean"):
-        clean_mode = True
-        reason = reason.strip()[len("-clean"):].strip() or ""
-    # Also handle: args start with -clean before user resolution
-    if context.args and context.args[0].lower() == "-clean":
-        clean_mode = True
-
-    mention = await _user_mention(user_id, update, context)
+    clean_mode = bool(
+        (reason and reason.strip().startswith("-clean"))
+        or (context.args and context.args[0].lower() == "-clean")
+    )
+    if clean_mode and reason:
+        reason = reason.strip()[len("-clean"):].strip()
 
     try:
         await context.bot.ban_chat_member(
-            chat_id=chat.id,
-            user_id=user_id,
-            revoke_messages=clean_mode,
+            chat_id=chat.id, user_id=user_id, revoke_messages=clean_mode
         )
     except BadRequest as exc:
-        await message.reply_text(f"⚠️ Failed to ban: <code>{html.escape(exc.message)}</code>",
-                                  parse_mode=ParseMode.HTML)
-        return None
-
-    try:
-        from database.engine import get_session
-        from database.models_extra import BanRecord
-        from sqlalchemy import select as sa_select
-        async with get_session() as session:
-            res = await session.execute(
-                sa_select(BanRecord).where(
-                    BanRecord.chat_id == chat.id,
-                    BanRecord.user_id == user_id,
-                )
-            )
-            br = res.scalar_one_or_none()
-            if br is None:
-                session.add(BanRecord(
-                    chat_id=chat.id, user_id=user_id,
-                    reason=reason or None, banned_by=user.id, unbanned=False,
-                ))
-            else:
-                br.unbanned = False
-                br.reason = reason or br.reason
-                br.banned_by = user.id
-    except Exception as _e:
-        logger.debug("Could not write BanRecord: %s", _e)
-
-    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
-    clean_line: str = "\n🧹 <i>All recent messages deleted.</i>" if clean_mode else ""
-    await message.reply_html(
-        f"🔨 <b>User Banned!</b>\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {mention}\n"
-        f"👮 <b>By:</b> {user.mention_html()}"
-        f"{reason_line}"
-        f"{clean_line}"
-    )
-
-    log_msg: str = (
-        f"<b>{html.escape(chat.title or '')}:</b>\n"
-        f"{'#CLEANBAN' if clean_mode else '#BAN'}\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
-        f"{reason_line}"
-        f"{clean_line}"
-    )
-    return log_msg
-
-
-# ---------------------------------------------------------------------------
-# /tban — temporary ban
-# ---------------------------------------------------------------------------
-
-@user_admin
-@bot_admin
-@can_restrict
-@loggable
-async def temp_ban(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> Optional[str]:
-    """
-    Temporarily ban a user.
-
-    Usage:
-        /tban @username 2h
-        /tban <reply> 30m Too many spam messages
-    """
-    chat = update.effective_chat
-    message = update.effective_message
-    user = update.effective_user
-
-    user_id, args_text = await extract_user_and_text(update, context)
-    lang = await get_chat_lang(chat.id)
-
-    if not user_id:
         await message.reply_text(
-            "⚠️ Specify a user and a duration, e.g.:\n"
-            "<code>/tban @username 2h [reason]</code>",
+            f"⚠️ فشل الحظر: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
+    await bans_repo.record_ban(chat.id, user_id, user.id, reason or "")
+
+    mention = await _mention(user_id, update, context)
+    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    clean_line = "\n🧹 <i>تم حذف رسائله الأخيرة.</i>" if clean_mode else ""
+
+    await message.reply_html(
+        f"🔨 <b>تم الحظر</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>المستخدم:</b> {mention}\n"
+        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"{reason_line}{clean_line}"
+    )
+    return (
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
+        f"{'#CLEANBAN' if clean_mode else '#BAN'}\n"
+        f"<b>المشرف:</b> {user.mention_html()}\n"
+        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"{reason_line}{clean_line}"
+    )
+
+
+@user_admin
+@bot_admin
+@can_restrict
+@loggable
+async def temp_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
+    chat = update.effective_chat
+    message = update.effective_message
+    user = update.effective_user
+    user_id, args_text = await extract_user_and_text(update, context)
+
+    if not user_id:
+        await message.reply_text(
+            "⚠️ حدّد المستخدم والمدة:\n<code>/tban @username 2h [سبب]</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return None
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text(t("ban_admin", lang))
+        await message.reply_text(t("ban_admin"))
         return None
-
-    if user_id == context.bot.id:
-        await message.reply_text("🙃 Nice try.")
-        return None
-
     if not args_text:
         await message.reply_text(
-            "⚠️ Provide a duration after the username, e.g.:\n"
-            "<code>/tban @username 2h [reason]</code>",
+            "⚠️ أضف المدة بعد اسم المستخدم:\n<code>/tban @username 2h [سبب]</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     parts = args_text.split(None, 1)
-    time_str: str = parts[0]
-    reason: str = parts[1] if len(parts) > 1 else ""
-
+    time_str = parts[0]
+    reason = parts[1] if len(parts) > 1 else ""
     until: Optional[datetime] = extract_time(time_str)
+
     if until is None:
         await message.reply_text(
-            f"⚠️ Invalid duration <code>{html.escape(time_str)}</code>. "
-            f"Use formats like <code>10m</code>, <code>2h</code>, or <code>3d</code>.",
+            f"⚠️ مدة غير صحيحة <code>{html.escape(time_str)}</code>. "
+            f"استخدم: <code>10m</code>، <code>2h</code>، أو <code>3d</code>.",
             parse_mode=ParseMode.HTML,
         )
         return None
 
-    mention = await _user_mention(user_id, update, context)
-
     try:
         await context.bot.ban_chat_member(
-            chat_id=chat.id,
-            user_id=user_id,
-            until_date=until,
+            chat_id=chat.id, user_id=user_id, until_date=until
         )
     except BadRequest as exc:
-        await message.reply_text(f"⚠️ Failed to temporarily ban: <code>{html.escape(exc.message)}</code>",
-                                  parse_mode=ParseMode.HTML)
+        await message.reply_text(
+            f"⚠️ فشل الحظر المؤقت: <code>{html.escape(exc.message)}</code>",
+            parse_mode=ParseMode.HTML,
+        )
         return None
 
-    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    mention = await _mention(user_id, update, context)
+    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+
     await message.reply_html(
-        f"⏳ <b>Temp Ban!</b>\n"
+        f"⏳ <b>حظر مؤقت</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {mention}\n"
-        f"⏱ <b>Duration:</b> <code>{html.escape(time_str)}</code>\n"
-        f"👮 <b>By:</b> {user.mention_html()}"
+        f"👤 <b>المستخدم:</b> {mention}\n"
+        f"⏱ <b>المدة:</b> <code>{html.escape(time_str)}</code>\n"
+        f"👮 <b>بواسطة:</b> {user.mention_html()}"
         f"{reason_line}"
     )
-
-    log_msg: str = (
+    return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#TEMP_BAN\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
-        f"<b>Duration:</b> {html.escape(time_str)}"
+        f"<b>المشرف:</b> {user.mention_html()}\n"
+        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)\n"
+        f"<b>المدة:</b> {html.escape(time_str)}"
         f"{reason_line}"
     )
-    return log_msg
 
-
-# ---------------------------------------------------------------------------
-# /kick — remove user (can rejoin)
-# ---------------------------------------------------------------------------
 
 @user_admin
 @bot_admin
 @can_restrict
 @loggable
-async def kick(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> Optional[str]:
-    """
-    Kick a user from the group (they can rejoin via invite link).
-
-    Implemented as ban + immediate unban.
-
-    Usage:
-        /kick @username [reason]
-        /kick <reply> [reason]
-    """
+async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     chat = update.effective_chat
     message = update.effective_message
     user = update.effective_user
-
     user_id, reason = await extract_user_and_text(update, context)
-    lang = await get_chat_lang(chat.id)
 
     if not user_id:
-        await message.reply_text(t("ban_missing_target", lang))
+        await message.reply_text(t("ban_missing_target"))
         return None
-
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text(t("ban_admin", lang))
+        await message.reply_text(t("ban_admin"))
         return None
-
     if user_id == context.bot.id:
-        await message.reply_text("🙃 Nice try.")
+        await message.reply_text("🙃 لا.")
         return None
-
-    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user_id)
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
-        await message.reply_text(f"⚠️ Failed to kick: <code>{html.escape(exc.message)}</code>",
-                                  parse_mode=ParseMode.HTML)
+        await message.reply_text(
+            f"⚠️ فشل الطرد: <code>{html.escape(exc.message)}</code>",
+            parse_mode=ParseMode.HTML,
+        )
         return None
 
-    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    mention = await _mention(user_id, update, context)
+    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+
     await message.reply_html(
-        f"👢 <b>User Kicked!</b>\n"
+        f"👢 <b>تم الطرد</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {mention}\n"
-        f"👮 <b>By:</b> {user.mention_html()}"
+        f"👤 <b>المستخدم:</b> {mention}\n"
+        f"👮 <b>بواسطة:</b> {user.mention_html()}"
         f"{reason_line}"
     )
-
-    log_msg: str = (
+    return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#KICK\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>المشرف:</b> {user.mention_html()}\n"
+        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
         f"{reason_line}"
     )
-    return log_msg
 
 
-# ---------------------------------------------------------------------------
-# /kickme — self-kick for regular members
-# ---------------------------------------------------------------------------
-
-async def kickme(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    """Allow a non-admin member to voluntarily leave by having the bot kick them."""
+async def kickme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
     message = update.effective_message
     user = update.effective_user
-
     if not user:
         return
-
     if await is_user_admin(chat, user.id):
-        await message.reply_text("🛡 Admins can leave on their own — /kickme won't work for you.")
+        await message.reply_text("🛡 المشرفون يغادرون بأنفسهم.")
         return
-
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user.id)
-        await message.reply_text("👋 Done — you've been kicked. You can rejoin with an invite link.")
+        await message.reply_text("👋 تم. يمكنك العودة عبر رابط الدعوة.")
     except BadRequest as exc:
-        await message.reply_text(f"⚠️ Couldn't kick you: <code>{html.escape(exc.message)}</code>",
-                                  parse_mode=ParseMode.HTML)
+        await message.reply_text(
+            f"⚠️ تعذّر الطرد: <code>{html.escape(exc.message)}</code>",
+            parse_mode=ParseMode.HTML,
+        )
 
-
-# ---------------------------------------------------------------------------
-# /unban — lift an active ban
-# ---------------------------------------------------------------------------
 
 @user_admin
 @bot_admin
 @can_restrict
 @loggable
-async def unban(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> Optional[str]:
-    """
-    Remove a ban, but ONLY if the user is NOT currently in the chat.
-
-    Usage:
-        /unban @username
-        /unban <user_id>
-        /unban <reply>
-    """
+async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     chat = update.effective_chat
     message = update.effective_message
     user = update.effective_user
-
     user_id, _ = await extract_user_and_text(update, context)
-    lang = await get_chat_lang(chat.id)
 
     if not user_id:
-        await message.reply_text(t("ban_missing_target", lang))
+        await message.reply_text(t("ban_missing_target"))
         return None
-
     if await is_user_in_chat(chat, user_id):
-        await message.reply_text(
-            "ℹ️ That user is already in this chat — nothing to unban."
-        )
+        await message.reply_text("ℹ️ المستخدم موجود في المجموعة بالفعل.")
         return None
-
-    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
-        await message.reply_text(f"⚠️ Failed to unban: <code>{html.escape(exc.message)}</code>",
-                                  parse_mode=ParseMode.HTML)
+        await message.reply_text(
+            f"⚠️ فشل رفع الحظر: <code>{html.escape(exc.message)}</code>",
+            parse_mode=ParseMode.HTML,
+        )
         return None
 
-    try:
-        from datetime import timezone
-        from database.engine import get_session
-        from database.models_extra import BanRecord
-        from sqlalchemy import select as sa_select
-        async with get_session() as session:
-            res = await session.execute(
-                sa_select(BanRecord).where(
-                    BanRecord.chat_id == chat.id,
-                    BanRecord.user_id == user_id,
-                    BanRecord.unbanned == False,  # noqa: E712
-                )
-            )
-            br = res.scalar_one_or_none()
-            if br:
-                br.unbanned = True
-                br.unbanned_at = datetime.now(tz=timezone.utc)
-    except Exception as _e:
-        logger.debug("Could not update BanRecord on unban: %s", _e)
+    await bans_repo.record_unban(chat.id, user_id)
+    mention = await _mention(user_id, update, context)
 
     await message.reply_html(
-        f"✅ <b>User Unbanned!</b>\n"
+        f"✅ <b>رُفع الحظر</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {mention}\n"
-        f"👮 <b>By:</b> {user.mention_html()}"
+        f"👤 <b>المستخدم:</b> {mention}\n"
+        f"👮 <b>بواسطة:</b> {user.mention_html()}"
     )
-
-    log_msg: str = (
+    return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#UNBAN\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>المشرف:</b> {user.mention_html()}\n"
+        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
     )
-    return log_msg
 
-
-# ---------------------------------------------------------------------------
-# Plugin registration
-# ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:
-    """Register all ban-related command handlers with the application."""
-    application.add_handler(
-        CommandHandler("ban", ban, filters=filters.ChatType.GROUPS)
-    )
-    application.add_handler(
-        CommandHandler(["tban", "tempban"], temp_ban, filters=filters.ChatType.GROUPS)
-    )
-    application.add_handler(
-        CommandHandler("kick", kick, filters=filters.ChatType.GROUPS)
-    )
-    application.add_handler(
-        CommandHandler("kickme", kickme, filters=filters.ChatType.GROUPS)
-    )
-    application.add_handler(
-        CommandHandler("unban", unban, filters=filters.ChatType.GROUPS)
-    )
+    application.add_handler(CommandHandler("ban", ban, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler(["tban", "tempban"], temp_ban, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("kick", kick, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("kickme", kickme, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("unban", unban, filters=filters.ChatType.GROUPS))
     logger.info("Plugin loaded: bans")

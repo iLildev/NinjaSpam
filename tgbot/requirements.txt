@@ -1,0 +1,48 @@
+# ============================================================
+#  Telegram Group Management Bot — Python Dependencies
+#  Install with:  pip install -r requirements.txt
+# ============================================================
+
+# ----- Telegram Framework -----
+# Fully async PTB v20.x using asyncio; includes httpx transport.
+python-telegram-bot[job-queue]==20.7
+
+# ----- Environment / Configuration -----
+python-dotenv==1.0.1
+
+# ----- Database -----
+# Core async SQLAlchemy ORM
+sqlalchemy[asyncio]==2.0.30
+
+# Async drivers — include both so the bot works on SQLite (dev) and
+# PostgreSQL (production) without changing any application code.
+aiosqlite==0.20.0          # SQLite async driver (development / testing)
+asyncpg==0.29.0            # PostgreSQL async driver (production)
+
+# ----- Validation -----
+# Pydantic v2 for config/data validation where needed beyond SQLAlchemy.
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# ----- Bayesian Spam Filter -----
+# Pure-Python math; no heavy ML framework needed for naive Bayes.
+# The classifier is implemented from scratch in core/spam_bayes.py.
+# (No additional dependency required beyond the standard library.)
+
+# ----- Utilities -----
+# Async-safe in-process caching (used for rate limiting and Bayes model cache).
+cachetools==5.3.3
+
+# Human-readable relative timestamps and duration helpers.
+humanize==4.9.0
+
+# RSS/Atom feed parser (used by plugins/rss.py)
+feedparser==6.0.11
+
+# Timezone data for pytz (used by plugins/timezone_cmd.py and userinfo.py)
+pytz==2024.1
+
+# ----- Development / Testing -----
+pytest==8.2.0
+pytest-asyncio==0.23.6
+pytest-mock==3.14.0

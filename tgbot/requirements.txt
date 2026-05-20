@@ -42,6 +42,9 @@ feedparser==6.0.11
 # Timezone data for pytz (used by plugins/timezone_cmd.py and userinfo.py)
 pytz==2024.1
 
+# Allows nested asyncio event loops (required by main.py bootstrap).
+nest_asyncio==1.6.0
+
 # ----- Development / Testing -----
 pytest==8.2.0
 pytest-asyncio==0.23.6

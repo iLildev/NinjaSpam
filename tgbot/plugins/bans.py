@@ -2,17 +2,18 @@
 plugins/bans.py — Ban, kick, temporary-ban, and unban command handlers.
 
 Commands:
-  /ban   [user] [reason]  — Permanently ban a user from the group.
+  /ban   [user] [reason]        — Permanently ban a user from the group.
   /tban  [user] <time> [reason] — Temporarily ban (10m / 2h / 3d).
-  /kick  [user] [reason]  — Remove the user (can rejoin; no ban record).
-  /kickme                 — Allow a regular member to kick themselves.
-  /unban [user]           — Lift an active ban (only if user is absent).
+  /kick  [user] [reason]        — Remove the user (can rejoin; no ban record).
+  /kickme                       — Allow a regular member to kick themselves.
+  /unban [user]                 — Lift an active ban (only if user is absent).
 
 All actions are logged to the configured log channel via @loggable.
 """
 
 from __future__ import annotations
 
+import html
 import logging
 from datetime import datetime
 from typing import Optional
@@ -35,6 +36,32 @@ from core.helpers.string_handling import extract_time
 from core.log_channel import loggable
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Helper — resolve a user display name for response messages
+# ---------------------------------------------------------------------------
+
+async def _user_mention(user_id: int, update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """
+    Return an HTML mention for the target user.
+
+    Resolution order:
+    1. reply_to_message.from_user (already in memory, no API call)
+    2. context.bot.get_chat(user_id) (one API call)
+    3. Fallback: bare ID wrapped in tg:// link
+    """
+    msg = update.effective_message
+    if msg and msg.reply_to_message and msg.reply_to_message.from_user:
+        u = msg.reply_to_message.from_user
+        if u.id == user_id:
+            return u.mention_html()
+    try:
+        chat = await context.bot.get_chat(user_id)
+        name = html.escape(chat.full_name or chat.title or str(user_id))
+        return f'<a href="tg://user?id={user_id}">{name}</a>'
+    except Exception:
+        return f'<a href="tg://user?id={user_id}">{user_id}</a>'
 
 
 # ---------------------------------------------------------------------------
@@ -64,27 +91,28 @@ async def ban(
     user_id, reason = await extract_user_and_text(update, context)
     if not user_id:
         await message.reply_text(
-            "I can't figure out who you want to ban.\n"
+            "⚠️ I can't figure out who you want to ban.\n"
             "Reply to their message, or pass @username / user_id."
         )
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("I can't ban an administrator.")
+        await message.reply_text("🛡 That user is an admin — I can't ban them.")
         return None
 
-    # Prevent banning the bot itself.
     if user_id == context.bot.id:
-        await message.reply_text("I won't ban myself.")
+        await message.reply_text("🙃 Nice try.")
         return None
+
+    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
-        await message.reply_text(f"Failed to ban: {exc.message}")
+        await message.reply_text(f"⚠️ Failed to ban: <code>{html.escape(exc.message)}</code>",
+                                  parse_mode=ParseMode.HTML)
         return None
 
-    # Record the ban for the appeals system
     try:
         from database.engine import get_session
         from database.models_extra import BanRecord
@@ -109,18 +137,18 @@ async def ban(
     except Exception as _e:
         logger.debug("Could not write BanRecord: %s", _e)
 
-    reason_line: str = f"\n<b>Reason:</b> {reason}" if reason else ""
-    log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
-        f"#BAN\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>"
-        f"{reason_line}"
+    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    await message.reply_text(
+        f"🔨 {mention} has been permanently banned.{reason_line}",
+        parse_mode=ParseMode.HTML,
     )
 
-    await message.reply_text(
-        f"Banned user {user_id}." + (f"\n<b>Reason:</b> {reason}" if reason else ""),
-        parse_mode=ParseMode.HTML,
+    log_msg: str = (
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
+        f"#BAN\n"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
+        f"{reason_line}"
     )
     return log_msg
 
@@ -140,9 +168,6 @@ async def temp_ban(
     """
     Temporarily ban a user.
 
-    The first token after the username/ID is consumed as the time string.
-    The remainder (if any) is the reason.
-
     Usage:
         /tban @username 2h
         /tban <reply> 30m Too many spam messages
@@ -154,23 +179,25 @@ async def temp_ban(
     user_id, args_text = await extract_user_and_text(update, context)
     if not user_id:
         await message.reply_text(
-            "Specify a user and a duration, e.g.:\n"
-            "/tban @username 2h [optional reason]"
+            "⚠️ Specify a user and a duration, e.g.:\n"
+            "<code>/tban @username 2h [reason]</code>",
+            parse_mode=ParseMode.HTML,
         )
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("I can't ban an administrator.")
+        await message.reply_text("🛡 That user is an admin — I can't ban them.")
         return None
 
     if user_id == context.bot.id:
-        await message.reply_text("I won't ban myself.")
+        await message.reply_text("🙃 Nice try.")
         return None
 
     if not args_text:
         await message.reply_text(
-            "Provide a duration after the username, e.g.:\n"
-            "/tban @username 2h [optional reason]"
+            "⚠️ Provide a duration after the username, e.g.:\n"
+            "<code>/tban @username 2h [reason]</code>",
+            parse_mode=ParseMode.HTML,
         )
         return None
 
@@ -181,9 +208,13 @@ async def temp_ban(
     until: Optional[datetime] = extract_time(time_str)
     if until is None:
         await message.reply_text(
-            f"Invalid duration '{time_str}'. Use formats like 10m, 2h, or 3d."
+            f"⚠️ Invalid duration <code>{html.escape(time_str)}</code>. "
+            f"Use formats like <code>10m</code>, <code>2h</code>, or <code>3d</code>.",
+            parse_mode=ParseMode.HTML,
         )
         return None
+
+    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.ban_chat_member(
@@ -192,23 +223,23 @@ async def temp_ban(
             until_date=until,
         )
     except BadRequest as exc:
-        await message.reply_text(f"Failed to temporarily ban: {exc.message}")
+        await message.reply_text(f"⚠️ Failed to temporarily ban: <code>{html.escape(exc.message)}</code>",
+                                  parse_mode=ParseMode.HTML)
         return None
 
-    reason_line: str = f"\n<b>Reason:</b> {reason}" if reason else ""
-    log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
-        f"#TEMP_BAN\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>\n"
-        f"<b>Duration:</b> {time_str}"
-        f"{reason_line}"
+    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    await message.reply_text(
+        f"⏳ {mention} has been banned for <b>{html.escape(time_str)}</b>.{reason_line}",
+        parse_mode=ParseMode.HTML,
     )
 
-    await message.reply_text(
-        f"Banned user {user_id} for {time_str}."
-        + (f"\n<b>Reason:</b> {reason}" if reason else ""),
-        parse_mode=ParseMode.HTML,
+    log_msg: str = (
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
+        f"#TEMP_BAN\n"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
+        f"<b>Duration:</b> {html.escape(time_str)}"
+        f"{reason_line}"
     )
     return log_msg
 
@@ -228,7 +259,7 @@ async def kick(
     """
     Kick a user from the group (they can rejoin via invite link).
 
-    Implemented as ban + immediate unban, which is Telegram's kick semantics.
+    Implemented as ban + immediate unban.
 
     Usage:
         /kick @username [reason]
@@ -241,38 +272,40 @@ async def kick(
     user_id, reason = await extract_user_and_text(update, context)
     if not user_id:
         await message.reply_text(
-            "Reply to the user's message or pass @username / user_id."
+            "⚠️ Reply to the user's message or pass @username / user_id."
         )
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("I can't kick an administrator.")
+        await message.reply_text("🛡 That user is an admin — I can't kick them.")
         return None
 
     if user_id == context.bot.id:
-        await message.reply_text("Nice try.")
+        await message.reply_text("🙃 Nice try.")
         return None
+
+    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user_id)
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
-        await message.reply_text(f"Failed to kick: {exc.message}")
+        await message.reply_text(f"⚠️ Failed to kick: <code>{html.escape(exc.message)}</code>",
+                                  parse_mode=ParseMode.HTML)
         return None
 
-    reason_line: str = f"\n<b>Reason:</b> {reason}" if reason else ""
-    log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
-        f"#KICK\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>"
-        f"{reason_line}"
+    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    await message.reply_text(
+        f"👢 {mention} has been kicked. They can rejoin via invite link.{reason_line}",
+        parse_mode=ParseMode.HTML,
     )
 
-    await message.reply_text(
-        f"Kicked user {user_id}."
-        + (f"\n<b>Reason:</b> {reason}" if reason else ""),
-        parse_mode=ParseMode.HTML,
+    log_msg: str = (
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
+        f"#KICK\n"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
+        f"{reason_line}"
     )
     return log_msg
 
@@ -294,15 +327,16 @@ async def kickme(
         return
 
     if await is_user_admin(chat, user.id):
-        await message.reply_text("Admins can leave on their own — /kickme won't work for you.")
+        await message.reply_text("🛡 Admins can leave on their own — /kickme won't work for you.")
         return
 
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user.id)
-        await message.reply_text("Done — you've been kicked. You can rejoin with an invite link.")
+        await message.reply_text("👋 Done — you've been kicked. You can rejoin with an invite link.")
     except BadRequest as exc:
-        await message.reply_text(f"Couldn't kick you: {exc.message}")
+        await message.reply_text(f"⚠️ Couldn't kick you: <code>{html.escape(exc.message)}</code>",
+                                  parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -320,9 +354,6 @@ async def unban(
     """
     Remove a ban, but ONLY if the user is NOT currently in the chat.
 
-    Unbanning someone who is already in the group would be a no-op, and likely
-    an admin mistake — we refuse and explain.
-
     Usage:
         /unban @username
         /unban <user_id>
@@ -335,24 +366,25 @@ async def unban(
     user_id, _ = await extract_user_and_text(update, context)
     if not user_id:
         await message.reply_text(
-            "Specify who to unban via @username, user_id, or reply."
+            "⚠️ Specify who to unban via @username, user_id, or reply."
         )
         return None
 
-    # Guard: don't unban someone already inside the chat.
     if await is_user_in_chat(chat, user_id):
         await message.reply_text(
-            "That user is already in this chat — nothing to unban."
+            "ℹ️ That user is already in this chat — nothing to unban."
         )
         return None
+
+    mention = await _user_mention(user_id, update, context)
 
     try:
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
-        await message.reply_text(f"Failed to unban: {exc.message}")
+        await message.reply_text(f"⚠️ Failed to unban: <code>{html.escape(exc.message)}</code>",
+                                  parse_mode=ParseMode.HTML)
         return None
 
-    # Update BanRecord on unban
     try:
         from datetime import timezone
         from database.engine import get_session
@@ -373,14 +405,17 @@ async def unban(
     except Exception as _e:
         logger.debug("Could not update BanRecord on unban: %s", _e)
 
-    log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
-        f"#UNBAN\n"
-        f"<b>Admin:</b> {user.mention_html()}\n"
-        f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>"
+    await message.reply_text(
+        f"✅ {mention} has been unbanned and can now rejoin the group.",
+        parse_mode=ParseMode.HTML,
     )
 
-    await message.reply_text(f"Unbanned user {user_id}. They can now rejoin.")
+    log_msg: str = (
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
+        f"#UNBAN\n"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
+    )
     return log_msg
 
 

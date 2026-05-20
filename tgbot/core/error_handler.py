@@ -90,8 +90,14 @@ async def error_handler(
     if not config.OWNER_IDS:
         return
 
-    # Truncate traceback to fit within Telegram's 4096-char message limit.
-    tb_preview: str = tb_text[-2800:] if len(tb_text) > 2800 else tb_text
+    # Show the beginning (call stack) + end (actual error) of the traceback.
+    # The middle is trimmed to fit within Telegram's 4096-char message limit.
+    if len(tb_text) > 2800:
+        head = tb_text[:1200]
+        tail = tb_text[-1400:]
+        tb_preview = head + "\n…[truncated]…\n" + tail
+    else:
+        tb_preview = tb_text
     message_text: str = (
         f"⚠️ <b>Unhandled Exception</b>\n\n"
         f"<b>Update:</b> {html.escape(update_str)}\n"

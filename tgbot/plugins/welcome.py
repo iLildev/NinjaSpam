@@ -60,10 +60,12 @@ _VALID_TEMPLATE_VARS: List[str] = [
 ]
 
 _DEFAULT_WELCOME: str = (
-    "Hello {mention}! Welcome to {chatname}."
+    "👋 Welcome, {mention}!\n\n"
+    "You're now a member of <b>{chatname}</b>.\n"
+    "Please read the rules before chatting — /rules"
 )
 _DEFAULT_GOODBYE: str = (
-    "Goodbye, {first}. We'll miss you!"
+    "👋 {first} has left the group. Goodbye!"
 )
 
 

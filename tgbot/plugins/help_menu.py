@@ -196,6 +196,26 @@ CATEGORIES: dict[str, tuple[str, str, list[tuple[str, str]]]] = {
             ("/listrss",                       "List active RSS subscriptions"),
         ],
     ),
+    "games": (
+        "🎮", "Games & Economy",
+        [
+            ("/start_ninja",           "Begin your ninja career"),
+            ("/ninja_profile",         "View your ninja stats"),
+            ("/assassinate [@user]",   "Attempt to assassinate another ninja"),
+            ("/kidnap [@user]",        "Kidnap a ninja for ransom"),
+            ("/wallet",                "Check your virtual balance"),
+            ("/daily",                 "Claim your daily reward"),
+            ("/transfer @user <amt>",  "Send virtual currency to someone"),
+            ("/create_farm",           "Start your virtual farm"),
+            ("/plant <crop>",          "Plant a crop on your farm"),
+            ("/harvest",               "Harvest ready crops"),
+            ("/farm",                  "View your farm status"),
+            ("/create_castle",         "Found your castle kingdom"),
+            ("/duel [@user]",          "Challenge someone to a duel"),
+            ("/alliance [@user]",      "Form an alliance with another castle"),
+            ("/leaderboard",           "Game leaderboard for this chat"),
+        ],
+    ),
     "social": (
         "💬", "Social & Fun",
         [
@@ -275,9 +295,9 @@ def _category_keyboard(key: str) -> InlineKeyboardMarkup:
 
 def _main_text(bot_name: str) -> str:
     return (
-        f"<b>👋 {bot_name} Help Menu</b>\n\n"
-        f"Choose a category below to see available commands.\n\n"
-        f"<i>All commands work in groups. Tap any button to explore.</i>"
+        f"<b>🥷 {bot_name}</b>\n"
+        f"<i>Professional group management — protection, moderation, games & more.</i>\n\n"
+        f"<b>📂 Choose a category to explore commands:</b>"
     )
 
 

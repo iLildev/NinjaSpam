@@ -38,6 +38,8 @@ from telegram.ext import (
     filters,
 )
 
+import html
+
 from core.helpers.chat_status import (
     is_user_ban_protected,
     user_admin,
@@ -66,6 +68,32 @@ WARN_GROUP: int = 9
 # Sorted longest-first so more specific keywords match before subsets.
 # ---------------------------------------------------------------------------
 WARN_FILTERS: Dict[int, List[str]] = {}
+
+
+# ---------------------------------------------------------------------------
+# Helper — resolve a user display mention from user_id
+# ---------------------------------------------------------------------------
+
+async def _mention_from_id(
+    context: ContextTypes.DEFAULT_TYPE,
+    user_id: int,
+    update: "Update | None" = None,
+) -> str:
+    """Return an HTML mention string for user_id, best-effort."""
+    # Fast path: if we have a reply-to message
+    if update is not None:
+        msg = getattr(update, "effective_message", None)
+        if msg and getattr(msg, "reply_to_message", None):
+            u = msg.reply_to_message.from_user
+            if u and u.id == user_id:
+                return u.mention_html()
+    # API lookup
+    try:
+        chat = await context.bot.get_chat(user_id)
+        name = html.escape(chat.full_name or chat.title or str(user_id))
+        return f'<a href="tg://user?id={user_id}">{name}</a>'
+    except Exception:
+        return f'<a href="tg://user?id={user_id}">{user_id}</a>'
 
 
 def _keyword_regex(keyword: str) -> re.Pattern[str]:
@@ -189,7 +217,8 @@ async def _do_warn(
         member = await _get_or_create_member(session, chat_id, user_id)
         member.warn_count = warn_count
 
-    reason_line: str = f"\n<b>Reason:</b> {reason}" if reason else ""
+    mention = await _mention_from_id(context, user_id, update)
+    reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     if warn_count >= warn_limit:
         # Threshold reached — execute the configured action.
@@ -197,7 +226,7 @@ async def _do_warn(
         try:
             if warn_action == WarnAction.BAN:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-                action_text = "banned"
+                action_text = "permanently banned"
             elif warn_action == WarnAction.KICK:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                 await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
@@ -213,13 +242,10 @@ async def _do_warn(
         except BadRequest as exc:
             logger.warning(
                 "Warn action %s failed for user %s in chat %s: %s",
-                warn_action,
-                user_id,
-                chat_id,
-                exc.message,
+                warn_action, user_id, chat_id, exc.message,
             )
 
-        # Fetch all reasons for the log.
+        # Fetch all reasons for the summary.
         async with get_session() as session:
             all_entries_result = await session.execute(
                 select(WarnEntry).where(
@@ -232,20 +258,19 @@ async def _do_warn(
             ]
 
         reasons_block: str = (
-            "\n<b>Reasons:</b>\n" + "\n".join(f"  • {r}" for r in all_reasons)
-            if all_reasons
-            else ""
+            "\n<b>Reasons:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(all_reasons))
+            if all_reasons else ""
         )
         await message.reply_text(
-            f"<a href='tg://user?id={user_id}'>{user_id}</a> has been <b>{action_text}</b> "
-            f"after reaching {warn_limit} warnings.{reasons_block}",
+            f"⚠️ {mention} has been <b>{action_text}</b> "
+            f"after accumulating <b>{warn_limit}</b> warnings.{reasons_block}",
             parse_mode=ParseMode.HTML,
         )
         log_msg: str = (
-            f"<b>{chat.title}:</b>\n"
-            f"#WARN_ACTION_{action_text.upper()}\n"
+            f"<b>{html.escape(chat.title or '')}:</b>\n"
+            f"#WARN_ACTION_{action_text.upper().replace(' ', '_')}\n"
             f"<b>Warned by:</b> {warner_name}\n"
-            f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>\n"
+            f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
             f"<b>Count:</b> {warn_count}/{warn_limit}"
             f"{reason_line}"
         )
@@ -254,21 +279,20 @@ async def _do_warn(
     # Under threshold — show count with inline "Remove warn" button.
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(
-            f"Remove warn [{user_id}]",
+            f"🗑 Remove latest warn",
             callback_data=f"rmwarn_{chat_id}_{user_id}",
         )]]
     )
     await message.reply_text(
-        f"<a href='tg://user?id={user_id}'>{user_id}</a> has "
-        f"<b>{warn_count}/{warn_limit}</b> warnings.{reason_line}",
+        f"⚠️ {mention} now has <b>{warn_count}/{warn_limit}</b> warnings.{reason_line}",
         parse_mode=ParseMode.HTML,
         reply_markup=keyboard,
     )
     log_msg = (
-        f"<b>{chat.title}:</b>\n"
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#WARN\n"
         f"<b>Warned by:</b> {warner_name}\n"
-        f"<b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
         f"<b>Count:</b> {warn_count}/{warn_limit}"
         f"{reason_line}"
     )
@@ -414,21 +438,22 @@ async def warns(
     count: int = len(entries)
     reasons: List[str] = [e.reason for e in entries if e.reason]
 
+    mention = await _mention_from_id(context, user_id)
+
     if count == 0:
         await message.reply_text(
-            f"<a href='tg://user?id={user_id}'>{user_id}</a> has no warnings.",
+            f"✅ {mention} has no active warnings.",
             parse_mode=ParseMode.HTML,
         )
         return
 
     reasons_block: str = (
-        "\n<b>Reasons:</b>\n" + "\n".join(f"  {i + 1}. {r}" for i, r in enumerate(reasons))
+        "\n<b>Reasons:</b>\n" + "\n".join(f"  {i + 1}. {html.escape(r)}" for i, r in enumerate(reasons))
         if reasons
         else ""
     )
     await message.reply_text(
-        f"<a href='tg://user?id={user_id}'>{user_id}</a> has "
-        f"<b>{count}/{warn_limit}</b> warnings.{reasons_block}",
+        f"⚠️ {mention} has <b>{count}/{warn_limit}</b> warnings.{reasons_block}",
         parse_mode=ParseMode.HTML,
     )
 
@@ -468,10 +493,127 @@ async def reset_warns(
         if member:
             member.warn_count = 0
 
+    mention = await _mention_from_id(context, user_id, update)
     await message.reply_text(
-        f"Warnings for <a href='tg://user?id={user_id}'>{user_id}</a> have been reset.",
+        f"✅ All warnings for {mention} have been cleared.",
         parse_mode=ParseMode.HTML,
     )
+
+
+# ---------------------------------------------------------------------------
+# Standalone warn helper — no Update object required (used by report.py etc.)
+# ---------------------------------------------------------------------------
+
+async def issue_warn(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    user_id: int,
+    reason: str,
+    issuer_name: str = "Admin",
+) -> str:
+    """
+    Issue a warning without requiring an Update object.
+
+    Used by the report action callback and other automated systems that
+    don't have a live Update to reply to.
+
+    Returns a short status string describing the outcome.
+    """
+    # Guard: never warn an admin
+    try:
+        member_info = await context.bot.get_chat_member(chat_id, user_id)
+        if member_info.status in ("administrator", "creator"):
+            return "⛔ Cannot warn admins."
+    except Exception:
+        pass
+
+    # Fetch settings and insert the WarnEntry
+    async with get_session() as session:
+        chat_row = await session.get(ChatModel, chat_id)
+        if not chat_row:
+            try:
+                chat_obj = await context.bot.get_chat(chat_id)
+                chat_row = ChatModel(id=chat_id, title=chat_obj.title or "")
+            except Exception:
+                chat_row = ChatModel(id=chat_id, title="")
+            session.add(chat_row)
+            await session.flush()
+
+        user_row = await session.get(User, user_id)
+        if not user_row:
+            session.add(User(id=user_id, first_name=""))
+            await session.flush()
+
+        settings = await _get_or_create_settings(session, chat_id)
+        warn_limit: int = settings.warn_limit
+        warn_action: WarnAction = settings.warn_action
+
+        session.add(WarnEntry(
+            chat_id=chat_id, user_id=user_id,
+            reason=reason or None, issued_by_id=None,
+        ))
+        await session.flush()
+
+        from datetime import timezone as _tz
+        from sqlalchemy import or_
+        now_utc = __import__("datetime").datetime.now(_tz.utc)
+        active_result = await session.execute(
+            select(WarnEntry).where(
+                WarnEntry.chat_id == chat_id,
+                WarnEntry.user_id == user_id,
+                or_(WarnEntry.expires_at.is_(None), WarnEntry.expires_at > now_utc),
+            )
+        )
+        warn_count: int = len(active_result.scalars().all())
+
+        member_row = await _get_or_create_member(session, chat_id, user_id)
+        member_row.warn_count = warn_count
+
+    mention = await _mention_from_id(context, user_id)
+    reason_text = f" Reason: {reason}" if reason else ""
+
+    if warn_count >= warn_limit:
+        action_text = "warned"
+        try:
+            if warn_action == WarnAction.BAN:
+                await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
+                action_text = "permanently banned"
+            elif warn_action == WarnAction.KICK:
+                await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
+                await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
+                action_text = "kicked"
+            elif warn_action == WarnAction.MUTE:
+                from telegram import ChatPermissions
+                await context.bot.restrict_chat_member(
+                    chat_id=chat_id, user_id=user_id,
+                    permissions=ChatPermissions(can_send_messages=False),
+                )
+                action_text = "muted"
+        except Exception:
+            pass
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    f"⚠️ {mention} has been <b>{action_text}</b> after reaching "
+                    f"<b>{warn_limit}</b> warnings.{reason_text}"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        return f"{mention} — {action_text} ({warn_count}/{warn_limit} warns)."
+
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"⚠️ {mention} has been warned by {issuer_name}. ({warn_count}/{warn_limit}){reason_text}",
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+    return f"Warning {warn_count}/{warn_limit} issued."
 
 
 # ---------------------------------------------------------------------------

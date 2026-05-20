@@ -122,8 +122,9 @@ SOLDIERS_PER_POWER   = 1000   # جندي = نقطة قوة واحدة
 DIG_COOLDOWN_HOURS = 2
 IMMUNITY_DURATION  = timedelta(hours=24)
 
-DUEL_WIN_REWARD    = 20  # عملات للفائز بالمبارزة
-BATTLE_WIN_REWARD  = 100 # عملات للفائز بالمعركة الكبرى
+DUEL_WIN_REWARD    = 20   # عملات للفائز بالمبارزة
+BATTLE_WIN_REWARD  = 100  # عملات للفائز بالمعركة الكبرى
+GOLD_TO_COINS_RATE = 100  # 1 ذهب قلعة = 100 عملة محفظة
 
 # ---------------------------------------------------------------------------
 # أدوات مساعدة
@@ -1344,6 +1345,64 @@ async def _alliance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+async def cmd_exchange_gold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    /exchange_gold <عدد>
+    تحويل ذهب القلعة إلى عملات محفظة — السعر: 1 ذهب = 100 عملة.
+    الذهب المحوَّل يُخصم من مستودع القلعة ويُضاف للمحفظة العامة.
+    """
+    user    = update.effective_user
+    chat_id = update.effective_chat.id
+    if update.effective_chat.type == "private":
+        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            f"📌 الاستخدام: <code>/exchange_gold &lt;عدد&gt;</code>\n"
+            f"مثال: <code>/exchange_gold 5</code>\n\n"
+            f"💱 سعر الصرف: 1 ذهب قلعة 🏅 = {GOLD_TO_COINS_RATE} عملة 💰"
+        )
+        return
+
+    try:
+        amount = int(context.args[0])
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("❌ العدد يجب أن يكون رقماً موجباً.")
+        return
+
+    async with get_session() as session:
+        castle = await _get_castle(session, user.id, chat_id)
+        if not castle:
+            await update.message.reply_text("🏚️ أنشئ قلعتك أولاً بـ /create_castle")
+            return
+
+        res = await _get_or_create_resources(session, user.id, chat_id)
+        if res.gold < amount:
+            await update.message.reply_text(
+                f"❌ ذهبك غير كافٍ!\n"
+                f"تريد تحويل: {amount} 🏅 | لديك: {res.gold} 🏅\n\n"
+                f"احصل على المزيد عبر /dig أو /buy_resource gold {amount - res.gold}"
+            )
+            return
+
+        coins_earned = amount * GOLD_TO_COINS_RATE
+        res.gold -= amount
+        wallet = await add_coins(session, user.id, coins_earned)
+        new_balance = wallet.coins
+
+    await update.message.reply_text(
+        f"💱 <b>تم التحويل بنجاح!</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🏅 ذهب مُحوَّل:  <b>{amount}</b>\n"
+        f"💰 عملات مكتسبة: <b>{coins_earned:,}</b>\n\n"
+        f"رصيدك الجديد: <b>{new_balance:,} عملة</b>\n"
+        f"ذهبك المتبقي: <b>{res.gold} 🏅</b>"
+    )
+
+
 async def cmd_alliance_requests(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user    = update.effective_user
     chat_id = update.effective_chat.id
@@ -1402,10 +1461,12 @@ async def register(application: Application) -> None:
     application.add_handler(CommandHandler("fighters",         cmd_fighters))
     application.add_handler(CommandHandler("end_battle",       cmd_end_battle))
     application.add_handler(CommandHandler("top_rulers",       cmd_top_rulers))
+    # التحويل
+    application.add_handler(CommandHandler("exchange_gold",     cmd_exchange_gold))
     # التحالف
     application.add_handler(CommandHandler("alliance",          cmd_alliance))
     application.add_handler(CommandHandler("alliance_requests", cmd_alliance_requests))
     # Callbacks
     application.add_handler(CallbackQueryHandler(_alliance_callback, pattern=r"^alliance(accept|reject):\d+$"))
 
-    logger.info("castle_game plugin registered — %d commands.", 21)
+    logger.info("castle_game plugin registered — %d commands.", 22)

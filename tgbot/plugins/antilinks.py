@@ -153,6 +153,14 @@ async def antilinks_handler(
     if await _is_approved(chat.id, user.id):
         return
 
+    # Check temporary permit (from permit.py)
+    try:
+        from plugins.permit import is_permitted
+        if await is_permitted(chat.id, user.id, consume=True):
+            return
+    except Exception:
+        pass
+
     triggered: bool = False
     if settings.mode == AntiLinkMode.INVITE:
         triggered = _has_invite_link(text)

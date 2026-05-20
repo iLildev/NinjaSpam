@@ -3,10 +3,15 @@ plugins/bans.py — Ban, kick, temporary-ban, and unban command handlers.
 
 Commands:
   /ban   [user] [reason]        — Permanently ban a user from the group.
+  /ban   -clean [user] [reason] — Ban + delete ALL recent messages from user.
   /tban  [user] <time> [reason] — Temporarily ban (10m / 2h / 3d).
   /kick  [user] [reason]        — Remove the user (can rejoin; no ban record).
   /kickme                       — Allow a regular member to kick themselves.
   /unban [user]                 — Lift an active ban (only if user is absent).
+
+Aggressive cleanup (-clean flag, TG-spam inspired):
+  /ban -clean @user  — Uses Telegram's revoke_messages=True which deletes
+  all messages sent by the user in the last 48 hours before the ban.
 
 All actions are logged to the configured log channel via @loggable.
 """
@@ -104,10 +109,23 @@ async def ban(
         await message.reply_text("🙃 Nice try.")
         return None
 
+    # Detect -clean flag: /ban -clean @user or the reason starts with -clean
+    clean_mode: bool = False
+    if reason and reason.strip().startswith("-clean"):
+        clean_mode = True
+        reason = reason.strip()[len("-clean"):].strip() or ""
+    # Also handle: args start with -clean before user resolution
+    if context.args and context.args[0].lower() == "-clean":
+        clean_mode = True
+
     mention = await _user_mention(user_id, update, context)
 
     try:
-        await context.bot.ban_chat_member(chat_id=chat.id, user_id=user_id)
+        await context.bot.ban_chat_member(
+            chat_id=chat.id,
+            user_id=user_id,
+            revoke_messages=clean_mode,
+        )
     except BadRequest as exc:
         await message.reply_text(f"⚠️ Failed to ban: <code>{html.escape(exc.message)}</code>",
                                   parse_mode=ParseMode.HTML)
@@ -138,20 +156,23 @@ async def ban(
         logger.debug("Could not write BanRecord: %s", _e)
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    clean_line: str = "\n🧹 <i>All recent messages deleted.</i>" if clean_mode else ""
     await message.reply_html(
         f"🔨 <b>User Banned!</b>\n"
         f"━━━━━━━━━━━━━━━\n"
         f"👤 <b>User:</b> {mention}\n"
         f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}"
+        f"{clean_line}"
     )
 
     log_msg: str = (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
-        f"#BAN\n"
+        f"{'#CLEANBAN' if clean_mode else '#BAN'}\n"
         f"<b>Admin:</b> {user.mention_html()}\n"
         f"<b>User:</b> {mention} (<code>{user_id}</code>)"
         f"{reason_line}"
+        f"{clean_line}"
     )
     return log_msg
 

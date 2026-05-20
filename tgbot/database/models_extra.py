@@ -2308,6 +2308,98 @@ class StrictMember(Base):
 
 
 # ---------------------------------------------------------------------------
+# Anti-Duplicate Message Detection
+# ---------------------------------------------------------------------------
+
+class AntiDuplicateSettings(Base):
+    """Per-chat config for duplicate-message spam detection."""
+    __tablename__ = "anti_duplicate_settings"
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=3, comment="Times the same message must appear before action.")
+    window_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60, comment="Sliding window in minutes.")
+    action: Mapped[str] = mapped_column(String(16), nullable=False, default="ban", comment="Action: ban | mute | delete")
+    def __repr__(self) -> str:
+        return f"<AntiDuplicateSettings chat={self.chat_id} enabled={self.enabled} threshold={self.threshold}>"
+
+
+# ---------------------------------------------------------------------------
+# Reaction Spam Detection
+# ---------------------------------------------------------------------------
+
+class ReactionSpamSettings(Base):
+    """Per-chat config for emoji-reaction spam detection."""
+    __tablename__ = "reaction_spam_settings"
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    max_reactions: Mapped[int] = mapped_column(Integer, nullable=False, default=15, comment="Max reactions per user in window before ban.")
+    window_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    def __repr__(self) -> str:
+        return f"<ReactionSpamSettings chat={self.chat_id} enabled={self.enabled} max={self.max_reactions}>"
+
+
+# ---------------------------------------------------------------------------
+# Abnormal Spacing Check
+# ---------------------------------------------------------------------------
+
+class SpacingCheckSettings(Base):
+    """Per-chat config for abnormal-spacing evasion detection."""
+    __tablename__ = "spacing_check_settings"
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False, default="delete", comment="Action: delete | warn | ban")
+    def __repr__(self) -> str:
+        return f"<SpacingCheckSettings chat={self.chat_id} enabled={self.enabled} action={self.action}>"
+
+
+# ---------------------------------------------------------------------------
+# Homoglyph (Mixed-Script) Detection
+# ---------------------------------------------------------------------------
+
+class HomoglyphSettings(Base):
+    """Per-chat config for mixed Cyrillic/Latin homoglyph detection."""
+    __tablename__ = "homoglyph_settings"
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False, default="delete", comment="Action: delete | warn | ban")
+    def __repr__(self) -> str:
+        return f"<HomoglyphSettings chat={self.chat_id} enabled={self.enabled} action={self.action}>"
+
+
+# ---------------------------------------------------------------------------
+# Name/Username Pattern Ban
+# ---------------------------------------------------------------------------
+
+class NameBanPattern(Base):
+    """A single name-ban pattern scoped to a chat."""
+    __tablename__ = "name_ban_patterns"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
+    pattern: Mapped[str] = mapped_column(Text, nullable=False, comment="Plain substring or regex if is_regex=True.")
+    is_regex: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    def __repr__(self) -> str:
+        return f"<NameBanPattern chat={self.chat_id} pattern={self.pattern!r} regex={self.is_regex}>"
+
+
+# ---------------------------------------------------------------------------
+# Temporary Permit
+# ---------------------------------------------------------------------------
+
+class PermittedUser(Base):
+    """A user temporarily permitted to bypass automated filters."""
+    __tablename__ = "permitted_users"
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="NULL = no time limit.")
+    messages_remaining: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="NULL = no message limit.")
+    granted_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    def __repr__(self) -> str:
+        return f"<PermittedUser chat={self.chat_id} user={self.user_id}>"
+
+
+# ---------------------------------------------------------------------------
 # Phishing Detection — per-chat settings
 # ---------------------------------------------------------------------------
 

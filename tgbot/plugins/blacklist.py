@@ -11,6 +11,16 @@ Enforcement:
   A MessageHandler (group=11, edited_updates=True) checks every incoming and
   edited message (including sticker emoji and captions) against all blacklisted
   words for the chat.  Matching messages are deleted.  Admins are exempt.
+  Users with an active /permit are also exempt.
+
+Unicode obfuscation detection (mlt-melt inspired):
+  Before matching, the message text is normalised through _normalise() which:
+  - NFKD-decomposes font variants (ⓐ→a, 𝐛→b, ｃ→c, etc.)
+  - Strips combining diacritical marks (é→e, ñ→n)
+  - Maps Cyrillic lookalikes to Latin (с→c, о→o, р→r, etc.)
+  - Replaces common symbol substitutions ($→s, @→a, 0→o, 3→e, …)
+  Both the original AND the normalised text are checked, so plain matches
+  still work while obfuscated bypasses like "$p@m" or "сrypto" are caught.
 
 Word-boundary regex: r"( |^|[^\w])" + re.escape(trigger) + r"( |$|[^\w])"
 Matching is case-insensitive and respects word boundaries.
@@ -20,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from typing import List, Optional
 
 from sqlalchemy import delete, select
@@ -43,6 +54,55 @@ logger = logging.getLogger(__name__)
 
 BLACKLIST_GROUP: int = 11
 
+# ---------------------------------------------------------------------------
+# Unicode obfuscation normalisation (T001 — mlt-melt inspired)
+# ---------------------------------------------------------------------------
+
+# Cyrillic → Latin visual-lookalike substitutions
+_CYRILLIC_TO_LATIN: dict = {
+    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'r', 'с': 'c', 'х': 'x',
+    'у': 'y', 'ѕ': 's', 'і': 'i', 'ї': 'i', 'ј': 'j', 'ѵ': 'v',
+    'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H',
+    'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'Х': 'X', 'Ѕ': 'S',
+    'І': 'I', 'Ј': 'J', 'ё': 'e', 'Ё': 'E',
+}
+
+# Common symbol substitutions used to evade keyword filters
+_SYMBOL_SUBS: dict = {
+    '$': 's', '@': 'a', '0': 'o', '1': 'l',
+    '3': 'e', '4': 'a', '5': 's', '6': 'b',
+    '7': 't', '8': 'b', '!': 'i', '|': 'l',
+    '+': 't', '€': 'e', '£': 'l',
+}
+
+_CYR_TABLE = str.maketrans(_CYRILLIC_TO_LATIN)
+_SYM_TABLE = str.maketrans(_SYMBOL_SUBS)
+
+
+def _normalise(text: str) -> str:
+    """
+    Normalise text to defeat common Unicode obfuscation techniques.
+
+    1. NFKD decomposition — strips font variants (ⓐ→a, ｂ→b, 𝐜→c …)
+    2. Strip combining diacritics (Mn category) — é→e, ñ→n
+    3. Map Cyrillic lookalikes → Latin
+    4. Map common symbol substitutions ($→s, @→a …)
+    5. Lowercase
+    """
+    # Step 1 + 2: decompose + strip diacritics
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    # Step 3: Cyrillic → Latin
+    text = text.translate(_CYR_TABLE)
+    # Step 4: symbol subs
+    text = text.translate(_SYM_TABLE)
+    # Step 5: lowercase
+    return text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Pattern helpers
+# ---------------------------------------------------------------------------
 
 def _word_boundary_pattern(trigger: str) -> re.Pattern[str]:
     """Compile a word-boundary case-insensitive regex for ``trigger``."""
@@ -51,6 +111,26 @@ def _word_boundary_pattern(trigger: str) -> re.Pattern[str]:
         re.IGNORECASE,
     )
 
+
+def _text_matches_trigger(text: str, trigger: str) -> bool:
+    """
+    Return True if text contains trigger — checks both raw and normalised forms.
+
+    1. Direct word-boundary match (original text)
+    2. Word-boundary match on normalised text vs normalised trigger
+    """
+    if _word_boundary_pattern(trigger).search(text):
+        return True
+    norm_text = _normalise(text)
+    norm_trigger = _normalise(trigger)
+    if norm_trigger and _word_boundary_pattern(norm_trigger).search(norm_text):
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
 
 async def _ensure_chat(session, chat_id: int, title: str = "") -> None:
     if not await session.get(ChatModel, chat_id):
@@ -67,12 +147,7 @@ async def blacklist(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """
-    List all blacklisted words for this group.
-
-    Pass ``copy`` as an argument to get the list in ``<code>`` format,
-    making it easy to copy and paste.
-    """
+    """List all blacklisted words for this group."""
     chat = update.effective_chat
     message = update.effective_message
     copy_mode: bool = bool(context.args and context.args[0].lower() == "copy")
@@ -94,11 +169,10 @@ async def blacklist(
     else:
         lines = [f"• {e.trigger}" for e in entries]
 
-    header: str = "<b>Blacklisted Words:</b>\n"
+    header: str = "<b>🚫 Blacklisted Words:</b>\n"
     body: str = "\n".join(lines)
     full_text: str = header + body
 
-    # Telegram max message length guard.
     if len(full_text) > 4096:
         full_text = full_text[:4090] + "\n…"
 
@@ -114,17 +188,7 @@ async def add_blacklist(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """
-    Add one or more words to the blacklist.
-
-    Each line in the message (after the command) is treated as a separate
-    trigger.  Words are stored in lowercase.
-
-    Usage:
-        /addblacklist badword1
-        badword2
-        bad phrase
-    """
+    """Add one or more words to the blacklist (one per line)."""
     chat = update.effective_chat
     message = update.effective_message
 
@@ -159,9 +223,9 @@ async def add_blacklist(
 
     parts: List[str] = []
     if added:
-        parts.append(f"Added {len(added)} word(s): " + ", ".join(f"<code>{w}</code>" for w in added))
+        parts.append("Added " + str(len(added)) + " word(s): " + ", ".join(f"<code>{w}</code>" for w in added))
     if skipped:
-        parts.append(f"Already blacklisted: " + ", ".join(f"<code>{w}</code>" for w in skipped))
+        parts.append("Already blacklisted: " + ", ".join(f"<code>{w}</code>" for w in skipped))
 
     await message.reply_text("\n".join(parts), parse_mode=ParseMode.HTML)
 
@@ -175,15 +239,7 @@ async def remove_blacklist(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """
-    Remove one or more words from the blacklist.
-
-    Multi-line input removes each line as a separate trigger.
-
-    Usage:
-        /unblacklist badword1
-        badword2
-    """
+    """Remove one or more words from the blacklist (one per line)."""
     chat = update.effective_chat
     message = update.effective_message
 
@@ -218,9 +274,9 @@ async def remove_blacklist(
 
     parts: List[str] = []
     if removed:
-        parts.append(f"Removed: " + ", ".join(f"<code>{w}</code>" for w in removed))
+        parts.append("Removed: " + ", ".join(f"<code>{w}</code>" for w in removed))
     if not_found:
-        parts.append(f"Not in blacklist: " + ", ".join(f"<code>{w}</code>" for w in not_found))
+        parts.append("Not in blacklist: " + ", ".join(f"<code>{w}</code>" for w in not_found))
 
     await message.reply_text("\n".join(parts) or "Nothing changed.", parse_mode=ParseMode.HTML)
 
@@ -237,14 +293,25 @@ async def delete_blacklisted(
     """
     Delete any message (including edits) that contains a blacklisted word.
 
-    Skips messages from admins (enforced by @user_not_admin decorator).
-    Also scans sticker emoji and captions, not just plain text.
+    Skips messages from admins (@user_not_admin decorator).
+    Also checks sticker emoji and captions, not just plain text.
+    Checks both raw text AND Unicode-normalised text to catch obfuscation.
+    Users with an active /permit are exempt.
     """
     chat = update.effective_chat
     message = update.effective_message
+    user = update.effective_user
 
-    if not message:
+    if not message or not user:
         return
+
+    # Check temporary permit
+    try:
+        from plugins.permit import is_permitted
+        if await is_permitted(chat.id, user.id, consume=False):
+            return
+    except Exception:
+        pass
 
     text: Optional[str] = (
         message.text
@@ -261,7 +328,7 @@ async def delete_blacklisted(
         triggers = [row[0] for row in result.all()]
 
     for trigger in triggers:
-        if _word_boundary_pattern(trigger).search(text):
+        if _text_matches_trigger(text, trigger):
             try:
                 await message.delete()
             except BadRequest as exc:
@@ -271,7 +338,7 @@ async def delete_blacklisted(
                         chat.id,
                         exc.message,
                     )
-            break  # Delete on first match; no need to check further.
+            break
 
 
 # ---------------------------------------------------------------------------

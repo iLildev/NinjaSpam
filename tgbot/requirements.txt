@@ -30,6 +30,9 @@ pydantic-settings==2.2.1
 # (No additional dependency required beyond the standard library.)
 
 # ----- Utilities -----
+# Async HTTP client (used by plugins/cas_check.py and others).
+aiohttp==3.9.5
+
 # Async-safe in-process caching (used for rate limiting and Bayes model cache).
 cachetools==5.3.3
 

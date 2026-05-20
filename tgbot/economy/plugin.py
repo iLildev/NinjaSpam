@@ -41,6 +41,7 @@ from core.game_wallet import get_wallet, add_coins, deduct_coins
 from database.engine import get_session
 from database.game_models import Wallet
 from economy.helpers import (
+    check_jailed_and_reply,
     create_bank_account,
     fmt_coins,
     fmt_user,
@@ -338,6 +339,8 @@ async def cmd_checkbal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def cmd_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     async with get_session() as session:
+        if await check_jailed_and_reply(update, session, user.id):
+            return
         stats = await get_stats(session, user.id, user.first_name, user.username)
         wait = _remaining(stats.last_salary_at, SALARY_COOLDOWN)
         if wait:
@@ -364,6 +367,8 @@ async def cmd_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def cmd_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     async with get_session() as session:
+        if await check_jailed_and_reply(update, session, user.id):
+            return
         stats = await get_stats(session, user.id, user.first_name, user.username)
         wait = _remaining(stats.last_bonus_at, BONUS_COOLDOWN)
         if wait:
@@ -396,6 +401,10 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "🦹 ردّ على رسالة شخص واكتب /steal لسرقة فلوسه!"
         )
         return
+
+    async with get_session() as _chk:
+        if await check_jailed_and_reply(update, _chk, user.id):
+            return
 
     if target_id == user.id:
         await update.message.reply_text("😂 ما تقدر تسرق من نفسك!")
@@ -511,6 +520,8 @@ async def cmd_invest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     amount = int(args[0])
     async with get_session() as session:
+        if await check_jailed_and_reply(update, session, user.id):
+            return
         wallet = await deduct_coins(session, user.id, amount)
         if wallet is None:
             current = await get_wallet(session, user.id)
@@ -554,6 +565,8 @@ async def cmd_luck(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     amount = int(args[0])
     async with get_session() as session:
+        if await check_jailed_and_reply(update, session, user.id):
+            return
         wallet = await deduct_coins(session, user.id, amount)
         if wallet is None:
             current = await get_wallet(session, user.id)
@@ -602,6 +615,8 @@ async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     amount = int(args[0])
     async with get_session() as session:
+        if await check_jailed_and_reply(update, session, user.id):
+            return
         wallet = await deduct_coins(session, user.id, amount)
         if wallet is None:
             current = await get_wallet(session, user.id)
@@ -715,8 +730,14 @@ async def register(application: Application) -> None:
     application.add_handler(CommandHandler("trade",     cmd_trade))
     application.add_handler(CommandHandler("top",       cmd_top))
 
+    from economy.loans import register as register_loans
+    from economy.heist import register as register_heist
+    await register_loans(application)
+    await register_heist(application)
+
     logger.info(
-        "economy plugin registered — 15 commands: "
+        "economy plugin registered — 24 commands: "
         "richlist, openbank, closebank, mybank, transfer, balance, checkbal, "
-        "salary, bonus, steal, thieftop, invest, luck, trade, top"
+        "salary, bonus, steal, thieftop, invest, luck, trade, top, "
+        "loan, repay, myloan, debtors, myjail, bail, bailout, rob, joinrob"
     )

@@ -6,17 +6,23 @@ from __future__ import annotations
 
 import random
 import string
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from telegram import Update
 
 from core.game_wallet import get_wallet
-from economy.models import BankAccount, EconomyStats
+from economy.models import BankAccount, EconomyStats, JailRecord, LoanRecord
+
+
+def _utcnow() -> datetime:
+    return datetime.now(tz=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
-# EconomyStats helpers
+# EconomyStats
 # ---------------------------------------------------------------------------
 
 async def get_stats(
@@ -25,10 +31,7 @@ async def get_stats(
     first_name: str = "",
     username: Optional[str] = None,
 ) -> EconomyStats:
-    """أرجع إحصائيات المستخدم — تُنشأ تلقائياً عند أول طلب."""
-    result = await session.execute(
-        select(EconomyStats).where(EconomyStats.user_id == user_id)
-    )
+    result = await session.execute(select(EconomyStats).where(EconomyStats.user_id == user_id))
     stats = result.scalar_one_or_none()
     if stats is None:
         stats = EconomyStats(
@@ -47,11 +50,10 @@ async def get_stats(
 
 
 # ---------------------------------------------------------------------------
-# BankAccount helpers
+# BankAccount
 # ---------------------------------------------------------------------------
 
 async def _generate_account_number(session: AsyncSession) -> str:
-    """توليد رقم حساب فريد من 10 أرقام."""
     while True:
         number = "".join(random.choices(string.digits, k=10))
         exists = await session.execute(
@@ -62,19 +64,14 @@ async def _generate_account_number(session: AsyncSession) -> str:
 
 
 async def create_bank_account(
-    session: AsyncSession,
-    user_id: int,
-    first_name: str,
-    username: Optional[str],
+    session: AsyncSession, user_id: int, first_name: str, username: Optional[str],
 ) -> BankAccount:
-    """أنشئ حساباً بنكياً جديداً — يرجع الحساب الموجود إن كان هناك واحد."""
     existing = await get_bank_account_by_user(session, user_id)
     if existing:
         return existing
-    account_number = await _generate_account_number(session)
     account = BankAccount(
         user_id=user_id,
-        account_number=account_number,
+        account_number=await _generate_account_number(session),
         owner_first_name=first_name,
         owner_username=username,
     )
@@ -83,26 +80,123 @@ async def create_bank_account(
     return account
 
 
-async def get_bank_account_by_user(
-    session: AsyncSession, user_id: int
-) -> Optional[BankAccount]:
-    result = await session.execute(
-        select(BankAccount).where(BankAccount.user_id == user_id)
-    )
-    return result.scalar_one_or_none()
+async def get_bank_account_by_user(session: AsyncSession, user_id: int) -> Optional[BankAccount]:
+    r = await session.execute(select(BankAccount).where(BankAccount.user_id == user_id))
+    return r.scalar_one_or_none()
 
 
-async def get_bank_account_by_number(
-    session: AsyncSession, account_number: str
-) -> Optional[BankAccount]:
-    result = await session.execute(
-        select(BankAccount).where(BankAccount.account_number == account_number)
-    )
-    return result.scalar_one_or_none()
+async def get_bank_account_by_number(session: AsyncSession, number: str) -> Optional[BankAccount]:
+    r = await session.execute(select(BankAccount).where(BankAccount.account_number == number))
+    return r.scalar_one_or_none()
 
 
 # ---------------------------------------------------------------------------
-# Formatting helpers
+# Jail helpers
+# ---------------------------------------------------------------------------
+
+async def get_jail(session: AsyncSession, user_id: int) -> Optional[JailRecord]:
+    r = await session.execute(select(JailRecord).where(JailRecord.user_id == user_id))
+    return r.scalar_one_or_none()
+
+
+async def is_jailed(session: AsyncSession, user_id: int) -> bool:
+    """أرجع True إذا كان المستخدم في السجن فعلياً الآن."""
+    jail = await get_jail(session, user_id)
+    if jail is None:
+        return False
+    if not jail.is_active:
+        jail.is_released = True
+        return False
+    return True
+
+
+async def jail_user(
+    session: AsyncSession,
+    user_id: int,
+    reason: str,
+    duration_minutes: int = 60,
+    bail: int = 300,
+) -> JailRecord:
+    """ضع المستخدم في السجن — إذا كان موجوداً بالفعل فحدّث مدته."""
+    existing = await get_jail(session, user_id)
+    if existing and existing.is_active:
+        return existing
+    if existing:
+        await session.delete(existing)
+        await session.flush()
+    jail = JailRecord(
+        user_id=user_id,
+        reason=reason,
+        bail_amount=bail,
+        jailed_at=_utcnow(),
+        auto_release_at=_utcnow() + timedelta(minutes=duration_minutes),
+        is_released=False,
+    )
+    session.add(jail)
+    await session.flush()
+    return jail
+
+
+async def release_user(session: AsyncSession, user_id: int) -> None:
+    jail = await get_jail(session, user_id)
+    if jail:
+        jail.is_released = True
+
+
+# ---------------------------------------------------------------------------
+# Loan helpers
+# ---------------------------------------------------------------------------
+
+async def get_active_loan(session: AsyncSession, user_id: int) -> Optional[LoanRecord]:
+    r = await session.execute(
+        select(LoanRecord).where(LoanRecord.user_id == user_id, LoanRecord.is_repaid == False)
+    )
+    return r.scalar_one_or_none()
+
+
+async def auto_jail_if_overdue(
+    session: AsyncSession, user_id: int
+) -> Optional[JailRecord]:
+    """
+    إذا كان للمستخدم قرض متأخر السداد، ضعه في السجن تلقائياً.
+    يُستدعى قبل كل أمر كسب.
+    """
+    loan = await get_active_loan(session, user_id)
+    if loan and loan.is_overdue:
+        return await jail_user(
+            session, user_id,
+            reason=f"تعثّر في سداد قرض بقيمة {loan.remaining:,} عملة",
+            duration_minutes=120,
+            bail=300,
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Check jail + send message (convenience for handlers)
+# ---------------------------------------------------------------------------
+
+async def check_jailed_and_reply(update: Update, session: AsyncSession, user_id: int) -> bool:
+    """
+    تحقق من السجن وأرسل رسالة إذا كان مسجوناً.
+    يُرجع True إذا كان مسجوناً (يجب إيقاف المعالج).
+    """
+    await auto_jail_if_overdue(session, user_id)
+    if await is_jailed(session, user_id):
+        jail = await get_jail(session, user_id)
+        await update.message.reply_text(
+            f"🔒 <b>أنت في السجن!</b>\n\n"
+            f"السبب: {jail.reason}\n"
+            f"يُطلق سراحك بعد: <b>{jail.time_left_str}</b>\n\n"
+            f"أو ادفع كفالة <b>{jail.bail_amount:,} عملة</b> بـ /bail",
+            parse_mode="HTML",
+        )
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Formatting
 # ---------------------------------------------------------------------------
 
 def fmt_user(first_name: str, username: Optional[str] = None) -> str:

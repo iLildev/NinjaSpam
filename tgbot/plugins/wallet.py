@@ -58,7 +58,7 @@ async def _cmd_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             f"📈 إجمالي المكتسب: <b>{wallet.total_earned:,} عملة</b>\n\n"
             f"{daily_line}"
         )
-    await update.message.reply_text(text)
+    await update.message.reply_text(text, parse_mode="HTML")
 
 
 async def _cmd_daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -76,7 +76,8 @@ async def _cmd_daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             mins = rem // 60
             await update.message.reply_text(
                 f"⏳ لقد استلمت مكافأتك اليوم.\n"
-                f"عُد بعد <b>{hours} ساعة و{mins} دقيقة</b>."
+                f"عُد بعد <b>{hours} ساعة و{mins} دقيقة</b>.",
+                parse_mode="HTML",
             )
             return
 
@@ -87,7 +88,8 @@ async def _cmd_daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(
         f"🎁 <b>مكافأتك اليومية!</b>\n\n"
         f"حصلت على <b>{DAILY_REWARD} عملات</b> 💰\n"
-        f"رصيدك الآن: <b>{wallet.coins:,} عملة</b>"
+        f"رصيدك الآن: <b>{wallet.coins:,} عملة</b>",
+        parse_mode="HTML",
     )
 
 

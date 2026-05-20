@@ -36,6 +36,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    filters,
 )
 
 log = logging.getLogger(__name__)
@@ -419,10 +420,56 @@ async def help_callback(
 # Plugin registration
 # ---------------------------------------------------------------------------
 
+async def start_cmd(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """
+    رسالة ترحيب عند /start — تعريف بالبوت وأبرز مميزاته.
+    تعمل في المجموعات والخاص على حد سواء.
+    """
+    message = update.effective_message
+    user = update.effective_user
+    chat_type = update.effective_chat.type if update.effective_chat else "private"
+
+    try:
+        me = await context.bot.get_me()
+        bot_name = me.first_name
+    except Exception:
+        bot_name = "Ninja Bot"
+
+    if chat_type == "private":
+        text = (
+            f"🥷 <b>أهلاً {user.first_name}!</b>\n\n"
+            f"أنا <b>{bot_name}</b> — بوت إدارة مجموعات تيليجرام المتكامل.\n\n"
+            f"<b>🛡 الحماية</b>\n"
+            f"  مكافحة سبام · كابتشا · مكافحة الغارات · فلتر بايز الذكي\n\n"
+            f"<b>🚫 الإدارة</b>\n"
+            f"  بان · ميوت · إنذارات · فيدريشن · تنظيف\n\n"
+            f"<b>💰 الاقتصاد</b>\n"
+            f"  بنك وهمي · راتب · استثمار · سرقة · سطو جماعي · قروض\n\n"
+            f"<b>🎮 الألعاب</b>\n"
+            f"  نينجا · مزرعة · قلعة · مسابقات تخمين\n\n"
+            f"أضفني لمجموعتك ومنحني صلاحيات المشرف لأبدأ العمل!\n\n"
+            f"<i>اكتب /help لقائمة الأوامر الكاملة.</i>"
+        )
+    else:
+        text = (
+            f"🥷 <b>مرحباً {user.first_name}!</b>\n\n"
+            f"أنا <b>{bot_name}</b> — بوت الإدارة المتكامل.\n"
+            f"اكتب /help لقائمة جميع الأوامر."
+        )
+
+    await message.reply_html(text)
+
+
 async def register(application: Application) -> None:
-    """Register /help command and navigation callbacks."""
-    application.add_handler(CommandHandler("help", help_cmd))
-    application.add_handler(CommandHandler("start", help_cmd))
+    """Register /start, /help commands and navigation callbacks."""
+    # استبعاد deep-links مثل /start rules_... حتى تلتقطها plugins أخرى
+    application.add_handler(
+        CommandHandler("start", start_cmd, filters=~filters.Regex(r"rules_"))
+    )
+    application.add_handler(CommandHandler("help",  help_cmd))
     application.add_handler(
         CallbackQueryHandler(help_callback, pattern=rf"^{_CB}:")
     )

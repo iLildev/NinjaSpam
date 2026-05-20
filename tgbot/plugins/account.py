@@ -6,7 +6,7 @@ plugins/account.py — نظام الحسابات الوهمية 🎮 (للمتع
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 الأوامر:
-  /start          — بدء التسجيل (في المحادثة الخاصة)
+  /register       — بدء التسجيل (في المحادثة الخاصة)
   /my_account     — عرض هويتك الوهمية في اللعبة
   /add_payment    — إضافة/تحديث محفظة وهمية
   /remove_payment — حذف محفظة وهمية
@@ -125,18 +125,12 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     يعمل في المحادثة الخاصة:
     — مستخدم جديد: يبدأ تدفق التسجيل.
     — مستخدم مسجّل: يعرض ملخصاً ويخرج من المحادثة.
-    في المجموعات يعرض رسالة ترحيب مختصرة ويوجّه للخاص.
     """
     user = update.effective_user
     if not user:
         return ConversationHandler.END
 
-    # في المجموعات — رسالة مختصرة
     if update.effective_chat.type != "private":
-        await update.message.reply_text(
-            f"👋 مرحباً {user.first_name}!\n"
-            f"لإدارة حسابك ابدأ محادثة خاصة معي وأرسل /start"
-        )
         return ConversationHandler.END
 
     async with get_session() as session:
@@ -509,7 +503,7 @@ async def register(application: Application) -> None:
     # ConversationHandler للتسجيل وإضافة الحسابات
     reg_conv = ConversationHandler(
         entry_points=[
-            CommandHandler("start",       cmd_start,       filters=filters.ChatType.PRIVATE),
+            CommandHandler("register",    cmd_start,       filters=filters.ChatType.PRIVATE),
             CommandHandler("add_payment", cmd_add_payment, filters=filters.ChatType.PRIVATE),
         ],
         states={
@@ -540,12 +534,6 @@ async def register(application: Application) -> None:
         fallbacks=[CommandHandler("cancel", cmd_cancel)],
         per_chat=True,
         per_user=True,
-    )
-
-    # /start في المجموعات (خارج المحادثة)
-    application.add_handler(
-        CommandHandler("start", cmd_start, filters=~filters.ChatType.PRIVATE),
-        group=1,
     )
 
     application.add_handler(reg_conv,    group=0)

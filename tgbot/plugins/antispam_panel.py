@@ -295,10 +295,10 @@ async def settings_callback(
 # ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:
-    """Register the settings panel command and callback handler."""
-    application.add_handler(
-        CommandHandler("settings", settings_cmd, filters=filters.ChatType.GROUPS)
-    )
+    """Register the settings panel callback handler only.
+    The /settings command is registered exclusively by settings_panel.py
+    to avoid duplicate responses.
+    """
     application.add_handler(
         CallbackQueryHandler(settings_callback, pattern=rf"^{_CB_PREFIX}:")
     )

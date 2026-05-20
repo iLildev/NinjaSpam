@@ -2266,3 +2266,129 @@ class PhishingSettings(Base):
 
     def __repr__(self) -> str:
         return f"<PhishingSettings chat={self.chat_id} enabled={self.enabled} action={self.action}>"
+
+
+# ---------------------------------------------------------------------------
+# Gender System — ميزة تحديد الجنس
+# ---------------------------------------------------------------------------
+
+class GenderType(str, enum.Enum):
+    """نوع الجنس المحدد من قبل المستخدم."""
+    MALE   = "male"    # ولد
+    FEMALE = "female"  # بنت
+
+
+class UserGender(Base):
+    """
+    تخزين جنس المستخدم — مشترك عبر جميع المجموعات.
+
+    يحدد العضو جنسه بنفسه عبر الأوامر النصية ويمكنه حذفه في أي وقت.
+    """
+
+    __tablename__ = "user_genders"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+        comment="Telegram user ID.",
+    )
+    gender: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        comment="'male' or 'female'.",
+    )
+    set_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        comment="UTC timestamp when the user last set their gender.",
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserGender user={self.user_id} gender={self.gender!r}>"
+
+
+class GenderKeyword(Base):
+    """
+    كلمات مفتاحية تُفعِّل ردوداً مخصصة حسب جنس المرسل — خاصة بكل مجموعة.
+
+    gender_type = 'male'   → كلمات عيال (تُفعَّل حين يرسلها ولد)
+    gender_type = 'female' → كلمات بنات (تُفعَّل حين يرسلها بنت)
+    """
+
+    __tablename__ = "gender_keywords"
+    __table_args__ = (
+        UniqueConstraint("chat_id", "keyword", "gender_type", name="uq_gender_keyword"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="The group this keyword belongs to.",
+    )
+    keyword: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        comment="The trigger keyword (case-insensitive match).",
+    )
+    gender_type: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        comment="'male' or 'female' — which gender this keyword targets.",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<GenderKeyword chat={self.chat_id} keyword={self.keyword!r} "
+            f"gender={self.gender_type}>"
+        )
+
+
+class GenderResponse(Base):
+    """
+    ردود مخصصة حسب الجنس لكل مجموعة.
+
+    عندما تُفعَّل كلمة مفتاحية من جنس معين،
+    يختار البوت رداً عشوائياً من قائمة ردود ذلك الجنس.
+    """
+
+    __tablename__ = "gender_responses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="The group this response belongs to.",
+    )
+    gender_type: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        comment="'male' or 'female'.",
+    )
+    response_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="The reply text sent when this response is picked.",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<GenderResponse chat={self.chat_id} gender={self.gender_type} "
+            f"text={self.response_text[:30]!r}>"
+        )

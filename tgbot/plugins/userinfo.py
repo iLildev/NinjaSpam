@@ -174,7 +174,7 @@ async def user_info(
     import pytz
     from database.engine import get_session
     from database.models import User as UserModel
-    from database.models_extra import UserTimezone
+    from database.models_extra import UserTimezone, UserGender
 
     async with get_session() as session:
         db_user = await session.get(UserModel, uid)
@@ -183,7 +183,13 @@ async def user_info(
                 f"<b>Global Ban:</b> 🚫 Yes — {db_user.global_ban_reason or 'No reason given'}"
             )
 
-        tz_row = await session.get(UserTimezone, uid)
+        tz_row     = await session.get(UserTimezone, uid)
+        gender_row = await session.get(UserGender, uid)
+
+    # الجنس (إن كان محدداً من قبل المستخدم).
+    if gender_row:
+        _gender_label = {"male": "👦 ولد", "female": "👧 بنت"}.get(gender_row.gender, gender_row.gender)
+        lines.append(f"<b>الجنس:</b> {_gender_label}")
 
     # City & local time (only if the user has set their timezone).
     if tz_row:

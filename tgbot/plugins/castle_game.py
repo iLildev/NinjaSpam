@@ -45,13 +45,12 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Update,
 )
-from telegram.error import BadRequest
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -122,6 +121,7 @@ SOLDIERS_PER_POWER   = 1000   # جندي = نقطة قوة واحدة
 DIG_COOLDOWN_HOURS = 2
 IMMUNITY_DURATION  = timedelta(hours=24)
 
+DUEL_COOLDOWN_MIN  = 30   # دقائق بين كل مبارزة بنفس الخصم
 DUEL_WIN_REWARD    = 20   # عملات للفائز بالمبارزة
 BATTLE_WIN_REWARD  = 100  # عملات للفائز بالمعركة الكبرى
 GOLD_TO_COINS_RATE = 100  # 1 ذهب قلعة = 100 عملة محفظة
@@ -743,7 +743,9 @@ async def cmd_immunity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     async with get_session() as session:
         imm = await _get_immunity(session, user.id, chat_id)
-        if not imm or imm.cards == 0:
+
+        # لا سجل أصلاً، أو لا بطاقات ولا حصانة فعّالة
+        if not imm or (imm.cards == 0 and not imm.is_active):
             await update.message.reply_text(
                 "🛡️ ليس لديك بطاقات حصانة.\n"
                 "ابحث عنها عبر /dig"
@@ -755,20 +757,21 @@ async def cmd_immunity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             diff = imm.active_until - now
             h, rem = divmod(int(diff.total_seconds()), 3600)
             m = rem // 60
-            # إلغاء تفعيل
+            # إلغاء تفعيل — تُعاد البطاقة كاملة
             imm.active_until = None
+            imm.cards += 1
             msg = (
                 f"🛡️ تم <b>إلغاء تفعيل</b> الحصانة.\n"
-                f"كان متبقياً {h}س {m}د — البطاقة لم تُستهلك."
+                f"كان متبقياً {h}س {m}د.\n"
+                f"أُعيدت بطاقتك — رصيدك: {imm.cards} بطاقة."
             )
-            imm.cards += 1  # إعادة البطاقة
         else:
-            # تفعيل
+            # تفعيل — تُستهلك بطاقة واحدة
             imm.active_until = now + IMMUNITY_DURATION
             imm.cards -= 1
             msg = (
                 f"🛡️ <b>تم تفعيل الحصانة!</b>\n"
-                f"أنت محمي لمدة 24 ساعة.\n"
+                f"أنت محمي لمدة 24 ساعة كاملة.\n"
                 f"بطاقاتك المتبقية: {imm.cards}"
             )
 
@@ -829,6 +832,19 @@ async def cmd_duel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.reply_text("🤖 لا يمكنك مبارزة بوت!")
         return
 
+    # فحص cooldown المبارزة (30 دقيقة بين كل مبارزة بنفس الخصم)
+    cooldown_key = f"duel_{user.id}_{target.id}"
+    last_duel: Optional[datetime] = context.bot_data.get(cooldown_key)
+    if last_duel:
+        elapsed = (_utcnow() - last_duel).total_seconds()
+        if elapsed < DUEL_COOLDOWN_MIN * 60:
+            remaining_m = int((DUEL_COOLDOWN_MIN * 60 - elapsed) / 60)
+            await msg.reply_text(
+                f"⏳ بارزت {target.first_name} مؤخراً.\n"
+                f"انتظر <b>{remaining_m} دقيقة</b> قبل مبارزته مجدداً."
+            )
+            return
+
     async with get_session() as session:
         # فحص قلاع الطرفين
         my_castle = await _get_castle(session, user.id, chat_id)
@@ -882,6 +898,9 @@ async def cmd_duel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # مكافأة الفائز
         await add_coins(session, winner_id, DUEL_WIN_REWARD)
+
+    # تسجيل وقت المبارزة لمنع التكرار
+    context.bot_data[cooldown_key] = _utcnow()
 
     emoji = "⚔️" if attacker_won else "🛡️"
     await msg.reply_text(
@@ -1314,25 +1333,31 @@ async def _alliance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
             if raid_roll >= target_roll:
                 # الغارة ناجحة
+                soldiers_destroyed = 0
                 if target_bar and target_bar.soldiers > 0:
-                    lost = max(50, target_bar.soldiers // 5)
-                    target_bar.soldiers = max(0, target_bar.soldiers - lost)
+                    soldiers_destroyed = max(50, target_bar.soldiers // 5)
+                    target_bar.soldiers = max(0, target_bar.soldiers - soldiers_destroyed)
                     target_bar.power_level = target_bar.soldiers // SOLDIERS_PER_POWER
 
                 await add_coins(session, req.requester_id, 30)
                 await add_coins(session, req.target_id, 30)
 
+                dmg_line = (
+                    f"⚔️ دُمِّر من جيش {target_tag}: <b>{soldiers_destroyed:,} جندي</b>\n"
+                    if soldiers_destroyed > 0
+                    else f"ℹ️ {target_tag} لا يملك جيشاً — تضررت القلعة معنوياً فقط.\n"
+                )
                 result_text = (
                     f"🎉 <b>الغارة نجحت!</b>\n"
-                    f"قوة التحالف: {raid_roll} vs {target_roll}\n"
-                    f"أضرار {target_tag}: {max(50, (target_bar.soldiers if target_bar else 0)//5 + max(50, 0))} جندي\n"
-                    f"🎁 كل من المتحالفين ربح 30 عملة 💰"
+                    f"قوتكم: {raid_roll} نقطة مقابل {target_roll} نقطة\n"
+                    f"{dmg_line}"
+                    f"🎁 كل متحالف ربح 30 عملة 💰"
                 )
             else:
                 result_text = (
                     f"💔 <b>الغارة فشلت!</b>\n"
-                    f"قوة التحالف: {raid_roll} vs قوة {target_tag}: {target_roll}\n"
-                    f"دافع {target_tag} عن قلعته!"
+                    f"قوتكم: {raid_roll} نقطة مقابل {target_roll} نقطة\n"
+                    f"دافع {target_tag} بشجاعة عن قلعته!"
                 )
         else:
             result_text = "ℹ️ لا يوجد هدف في قائمة الحكام لتنفيذ الغارة عليه."

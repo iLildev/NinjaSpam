@@ -17,15 +17,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
-from sqlalchemy import select
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from database.engine import get_session
-from database.game_models import Wallet
-from core.game_wallet import get_wallet, add_coins, deduct_coins  # noqa: F401 — re-exported
+from core.game_wallet import add_coins, deduct_coins, get_wallet  # noqa: F401 — re-exported
 
 logger = logging.getLogger(__name__)
 

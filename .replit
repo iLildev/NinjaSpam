@@ -24,12 +24,12 @@ args = "Ninja Bot"
 name = "Ninja Bot"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd tgbot && pip install -r requirements.txt -q && python main.py"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd Ninja && pip install -r requirements.txt -q && python main.py"
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"

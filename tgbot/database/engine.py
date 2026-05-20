@@ -137,6 +137,7 @@ async def init_db() -> None:
     # are the side effect required — the names are intentionally unused.
     import database.models  # noqa: F401
     import database.models_extra  # noqa: F401
+    import database.game_models  # noqa: F401
 
     async with _engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)

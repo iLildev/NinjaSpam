@@ -32,6 +32,7 @@ from core.helpers.chat_status import (
 )
 from core.helpers.extraction import extract_user_and_text
 from core.helpers.string_handling import extract_time
+from core.i18n import get_chat_lang, t
 from core.log_channel import loggable
 
 logger = logging.getLogger(__name__)
@@ -138,14 +139,14 @@ async def mute(
     user = update.effective_user
 
     user_id, reason = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
-        await message.reply_text(
-            "⚠️ Reply to the user's message or pass @username / user_id."
-        )
+        await message.reply_text(t("ban_missing_target", lang))
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("🛡 That user is an admin — I can't mute them.")
+        await message.reply_text(t("mute_admin", lang))
         return None
 
     if user_id == context.bot.id:
@@ -153,7 +154,7 @@ async def mute(
         return None
 
     if await _is_muted(chat, user_id):
-        await message.reply_text("ℹ️ That user is already muted.")
+        await message.reply_text(t("mute_already", lang))
         return None
 
     try:
@@ -173,7 +174,7 @@ async def mute(
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_text(
-        f"🔇 {mention} has been muted.{reason_line}",
+        t("mute_done", lang, mention=mention, reason=reason_line),
         parse_mode=ParseMode.HTML,
     )
 
@@ -211,6 +212,8 @@ async def temp_mute(
     user = update.effective_user
 
     user_id, args_text = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
         await message.reply_text(
             "⚠️ Provide a user and a duration:\n"
@@ -220,7 +223,7 @@ async def temp_mute(
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("🛡 That user is an admin — I can't mute them.")
+        await message.reply_text(t("mute_admin", lang))
         return None
 
     if user_id == context.bot.id:
@@ -266,7 +269,7 @@ async def temp_mute(
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_text(
-        f"⏳ {mention} has been muted for <b>{html.escape(time_str)}</b>.{reason_line}",
+        t("mute_temp_done", lang, mention=mention, duration=html.escape(time_str), reason=reason_line),
         parse_mode=ParseMode.HTML,
     )
 
@@ -305,10 +308,10 @@ async def unmute(
     user = update.effective_user
 
     user_id, _ = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
-        await message.reply_text(
-            "⚠️ Reply to the user's message or pass @username / user_id."
-        )
+        await message.reply_text(t("ban_missing_target", lang))
         return None
 
     try:
@@ -327,7 +330,7 @@ async def unmute(
         return None
 
     if await _is_fully_unmuted(chat, user_id):
-        await message.reply_text("ℹ️ That user already has full messaging rights.")
+        await message.reply_text(t("unmute_already", lang))
         return None
 
     try:
@@ -346,7 +349,7 @@ async def unmute(
     mention = await _user_mention(user_id, update, context)
 
     await message.reply_text(
-        f"🔊 {mention} can now send messages again.",
+        t("unmute_done", lang, mention=mention),
         parse_mode=ParseMode.HTML,
     )
 

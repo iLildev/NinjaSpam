@@ -162,13 +162,14 @@ async def _do_warn(
     """
     chat = await context.bot.get_chat(chat_id)
     message = update.effective_message
+    lang = await get_chat_lang(chat_id)
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("Admins cannot be warned.")
+        await message.reply_text(t("warn_admin", lang))
         return None
 
     if user_id == context.bot.id:
-        await message.reply_text("I won't warn myself.")
+        await message.reply_text(t("warn_self", lang))
         return None
 
     async with get_session() as session:
@@ -311,10 +312,9 @@ async def warn(
 ) -> Optional[str]:
     """Issue a single warning to a group member."""
     user_id, reason = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(update.effective_chat.id)
     if not user_id:
-        await update.effective_message.reply_text(
-            "Reply to the user's message or pass @username / user_id."
-        )
+        await update.effective_message.reply_text(t("warn_no_target", lang))
         return None
 
     admin = update.effective_user
@@ -440,9 +440,11 @@ async def warns(
 
     mention = await _mention_from_id(context, user_id)
 
+    lang = await get_chat_lang(chat.id)
+
     if count == 0:
         await message.reply_text(
-            f"✅ {mention} has no active warnings.",
+            t("warns_none", lang, mention=mention),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -453,7 +455,7 @@ async def warns(
         else ""
     )
     await message.reply_text(
-        f"⚠️ {mention} has <b>{count}/{warn_limit}</b> warnings.{reasons_block}",
+        t("warns_count", lang, mention=mention, count=count, limit=warn_limit) + reasons_block,
         parse_mode=ParseMode.HTML,
     )
 
@@ -472,8 +474,9 @@ async def reset_warns(
     chat = update.effective_chat
 
     user_id, _ = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
     if not user_id:
-        await message.reply_text("Specify a user.")
+        await message.reply_text(t("warn_need_user", lang))
         return
 
     async with get_session() as session:
@@ -495,7 +498,7 @@ async def reset_warns(
 
     mention = await _mention_from_id(context, user_id, update)
     await message.reply_text(
-        f"✅ All warnings for {mention} have been cleared.",
+        t("warns_cleared", lang, mention=mention),
         parse_mode=ParseMode.HTML,
     )
 

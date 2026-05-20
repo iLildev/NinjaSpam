@@ -33,6 +33,7 @@ from core.helpers.chat_status import (
 )
 from core.helpers.extraction import extract_user_and_text
 from core.helpers.string_handling import extract_time
+from core.i18n import get_chat_lang, t
 from core.log_channel import loggable
 
 logger = logging.getLogger(__name__)
@@ -89,15 +90,14 @@ async def ban(
     user = update.effective_user
 
     user_id, reason = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
-        await message.reply_text(
-            "⚠️ I can't figure out who you want to ban.\n"
-            "Reply to their message, or pass @username / user_id."
-        )
+        await message.reply_text(t("ban_missing_target", lang))
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("🛡 That user is an admin — I can't ban them.")
+        await message.reply_text(t("ban_admin", lang))
         return None
 
     if user_id == context.bot.id:
@@ -139,7 +139,7 @@ async def ban(
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
     await message.reply_text(
-        f"🔨 {mention} has been permanently banned.{reason_line}",
+        t("ban_done", lang, mention=mention, reason=reason_line),
         parse_mode=ParseMode.HTML,
     )
 
@@ -177,6 +177,8 @@ async def temp_ban(
     user = update.effective_user
 
     user_id, args_text = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
         await message.reply_text(
             "⚠️ Specify a user and a duration, e.g.:\n"
@@ -186,7 +188,7 @@ async def temp_ban(
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("🛡 That user is an admin — I can't ban them.")
+        await message.reply_text(t("ban_admin", lang))
         return None
 
     if user_id == context.bot.id:
@@ -229,7 +231,7 @@ async def temp_ban(
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
     await message.reply_text(
-        f"⏳ {mention} has been banned for <b>{html.escape(time_str)}</b>.{reason_line}",
+        t("ban_temp_done", lang, mention=mention, duration=html.escape(time_str), reason=reason_line),
         parse_mode=ParseMode.HTML,
     )
 
@@ -270,14 +272,14 @@ async def kick(
     user = update.effective_user
 
     user_id, reason = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
-        await message.reply_text(
-            "⚠️ Reply to the user's message or pass @username / user_id."
-        )
+        await message.reply_text(t("ban_missing_target", lang))
         return None
 
     if await is_user_ban_protected(chat, user_id):
-        await message.reply_text("🛡 That user is an admin — I can't kick them.")
+        await message.reply_text(t("ban_admin", lang))
         return None
 
     if user_id == context.bot.id:
@@ -296,7 +298,7 @@ async def kick(
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
     await message.reply_text(
-        f"👢 {mention} has been kicked. They can rejoin via invite link.{reason_line}",
+        t("kick_done", lang, mention=mention, reason=reason_line),
         parse_mode=ParseMode.HTML,
     )
 
@@ -364,10 +366,10 @@ async def unban(
     user = update.effective_user
 
     user_id, _ = await extract_user_and_text(update, context)
+    lang = await get_chat_lang(chat.id)
+
     if not user_id:
-        await message.reply_text(
-            "⚠️ Specify who to unban via @username, user_id, or reply."
-        )
+        await message.reply_text(t("ban_missing_target", lang))
         return None
 
     if await is_user_in_chat(chat, user_id):
@@ -406,7 +408,7 @@ async def unban(
         logger.debug("Could not update BanRecord on unban: %s", _e)
 
     await message.reply_text(
-        f"✅ {mention} has been unbanned and can now rejoin the group.",
+        t("unban_done", lang, mention=mention),
         parse_mode=ParseMode.HTML,
     )
 

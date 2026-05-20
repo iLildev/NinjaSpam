@@ -130,9 +130,9 @@ async def _export_settings(chat_id: int) -> Dict[str, Any]:
 
         # ── Blacklist ──
         bl_result = await session.execute(
-            select(BlacklistWord).where(BlacklistWord.chat_id == chat_id)
+            select(BlacklistEntry).where(BlacklistEntry.chat_id == chat_id)
         )
-        payload["blacklist"] = [row.word for row in bl_result.scalars().all()]
+        payload["blacklist"] = [row.trigger for row in bl_result.scalars().all()]
 
         # ── Warn filters ──
         wf_result = await session.execute(
@@ -245,15 +245,16 @@ async def _import_settings(chat_id: int, data: Dict[str, Any]) -> list[str]:
 
         # ── Blacklist ──
         if "blacklist" in data and data["blacklist"]:
-            for word in data["blacklist"]:
+            for trigger in data["blacklist"]:
                 existing = await session.execute(
-                    select(BlacklistWord).where(
-                        BlacklistWord.chat_id == chat_id, BlacklistWord.word == word
+                    select(BlacklistEntry).where(
+                        BlacklistEntry.chat_id == chat_id,
+                        BlacklistEntry.trigger == trigger.lower(),
                     )
                 )
                 if not existing.scalar_one_or_none():
-                    session.add(BlacklistWord(chat_id=chat_id, word=word))
-            applied.append(f"{len(data['blacklist'])} blacklist words")
+                    session.add(BlacklistEntry(chat_id=chat_id, trigger=trigger.lower()))
+            applied.append(f"{len(data['blacklist'])} blacklist entries")
 
         # ── NightMode ──
         if "nightmode" in data:

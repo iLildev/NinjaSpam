@@ -207,6 +207,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "warn_no_reason": "⚠️ {mention} has been warned ({count}/{limit})",
         "warn_select_reason": "Select a reason for this warning:",
         "warn_custom_reason": "✏️ Custom reason",
+        "warn_admin": "🛡 Admins cannot be warned.",
+        "warn_self": "🙃 I won't warn myself.",
+        "warn_no_target": "⚠️ Reply to a user's message or pass @username / user_id.",
+        "warn_need_user": "⚠️ Specify who to warn.",
+        "warns_none": "✅ {mention} has no active warnings.",
+        "warns_count": "⚠️ {mention} has <b>{count}/{limit}</b> warnings.",
+        "warns_cleared": "✅ All warnings for {mention} have been cleared.",
 
         # ── Federation auto-propagation ───────────────────────────────────────
         "fed_auto_ban": "🌐 <b>Federation Ban Propagated</b>\n\nUser {mention} was banned in <b>{source_chat}</b> and automatically removed from this chat.\n<b>Fed:</b> {fed_name}",
@@ -245,6 +252,37 @@ STRINGS: dict[str, dict[str, str]] = {
         "phishing_off": "❌ Phishing link detection <b>disabled</b>.",
         "phishing_status": "🔗 <b>Phishing Detection</b>\nStatus: {state}\nAction: {action}\nURLs scanned: {count}",
         "phishing_usage": "Usage: /phishing on|off|status\n/phishing action delete|warn|ban\n/phishing check &lt;url&gt;",
+
+        # ── Moderation (settings panel section) ───────────────────────────────
+        "settings_moderation": "🚔 Moderation",
+        "mod_menu_title": "🚔 <b>Moderation</b>\n\nManage flood, anti-links, anti-raid, and member reports:",
+        "mod_flood": "🌊 Flood Control",
+        "mod_flood_limit_btn": "🌊 Flood Limit: {limit} msgs",
+        "mod_antilinks": "🔗 Anti-Links",
+        "mod_antiraid": "⚔️ Anti-Raid",
+        "mod_reports": "📢 Reports",
+        "mod_flood_limit_prompt": "Current flood limit: <b>{value}</b> messages.\n\nSend a new limit (3–50):",
+        "mod_flood_limit_set": "Flood limit set to <b>{value}</b> consecutive messages.",
+        "mod_flood_limit_invalid": "Invalid value. Please send a number between 3 and 50.",
+        "antilinks_mode_off": "🔗 Links: Off",
+        "antilinks_mode_invite": "🔗 Links: Invites Only",
+        "antilinks_mode_all": "🔗 Links: Block All",
+
+        # ── Ban / Kick / Unban (i18n keys) ────────────────────────────────────
+        "ban_done": "🔨 {mention} has been permanently banned.{reason}",
+        "ban_temp_done": "⏳ {mention} has been banned for <b>{duration}</b>.{reason}",
+        "kick_done": "👢 {mention} has been kicked. They can rejoin via invite link.{reason}",
+        "unban_done": "✅ {mention} has been unbanned and can now rejoin the group.",
+        "ban_admin": "🛡 That user is an admin — I can't perform this action.",
+        "ban_missing_target": "⚠️ I can't figure out who you want to target.\nReply to their message, or pass @username / user_id.",
+
+        # ── Mute / Unmute (i18n keys) ─────────────────────────────────────────
+        "mute_done": "🔇 {mention} has been muted.{reason}",
+        "mute_temp_done": "⏳ {mention} has been muted for <b>{duration}</b>.{reason}",
+        "unmute_done": "🔊 {mention} can now send messages again.",
+        "mute_already": "ℹ️ That user is already muted.",
+        "unmute_already": "ℹ️ That user already has full messaging rights.",
+        "mute_admin": "🛡 That user is an admin — I can't mute them.",
     },
 
     # =========================================================================
@@ -428,6 +466,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "warn_no_reason": "⚠️ {mention} تم تحذيره ({count}/{limit})",
         "warn_select_reason": "اختر سبب التحذير:",
         "warn_custom_reason": "✏️ سبب مخصص",
+        "warn_admin": "🛡 لا يمكن تحذير الأدمنز.",
+        "warn_self": "🙃 لن أُحذّر نفسي.",
+        "warn_no_target": "⚠️ ردّ على رسالة المستخدم أو أرسل @username / user_id.",
+        "warn_need_user": "⚠️ حدّد المستخدم المراد تحذيره.",
+        "warns_none": "✅ لا يوجد لدى {mention} أي تحذيرات نشطة.",
+        "warns_count": "⚠️ لدى {mention} <b>{count}/{limit}</b> تحذير.",
+        "warns_cleared": "✅ تم مسح جميع تحذيرات {mention}.",
 
         # Federation auto-propagation
         "fed_auto_ban": "🌐 <b>حظر Federation تلقائي</b>\n\nالمستخدم {mention} تم حظره في <b>{source_chat}</b> وتمت إزالته تلقائياً من هذه المجموعة.\n<b>الاتحاد:</b> {fed_name}",
@@ -466,6 +511,37 @@ STRINGS: dict[str, dict[str, str]] = {
         "phishing_off": "❌ كشف روابط التصيد <b>معطّل</b>.",
         "phishing_status": "🔗 <b>كشف التصيد الاحتيالي</b>\nالحالة: {state}\nالإجراء: {action}\nروابط مفحوصة: {count}",
         "phishing_usage": "الاستخدام: /phishing on|off|status\n/phishing action delete|warn|ban\n/phishing check &lt;رابط&gt;",
+
+        # ── Moderation ────────────────────────────────────────────────────────
+        "settings_moderation": "🚔 الإشراف",
+        "mod_menu_title": "🚔 <b>الإشراف</b>\n\nإدارة الفيضان، الروابط، الغارات والبلاغات:",
+        "mod_flood": "🌊 مكافحة الفيضان",
+        "mod_flood_limit_btn": "🌊 الحد: {limit} رسالة",
+        "mod_antilinks": "🔗 مكافحة الروابط",
+        "mod_antiraid": "⚔️ مكافحة الغارات",
+        "mod_reports": "📢 البلاغات",
+        "mod_flood_limit_prompt": "حد الفيضان الحالي: <b>{value}</b> رسالة.\n\nأرسل حداً جديداً (3–50):",
+        "mod_flood_limit_set": "تم ضبط حد الفيضان على <b>{value}</b> رسالة متتالية.",
+        "mod_flood_limit_invalid": "قيمة غير صحيحة. أرسل رقماً بين 3 و 50.",
+        "antilinks_mode_off": "🔗 الروابط: مغلق",
+        "antilinks_mode_invite": "🔗 الروابط: دعوات فقط",
+        "antilinks_mode_all": "🔗 الروابط: حظر الكل",
+
+        # ── Ban / Kick / Unban ────────────────────────────────────────────────
+        "ban_done": "🔨 تم حظر {mention} بشكل دائم.{reason}",
+        "ban_temp_done": "⏳ تم حظر {mention} لمدة <b>{duration}</b>.{reason}",
+        "kick_done": "👢 تم طرد {mention}. يمكنه العودة عبر رابط الدعوة.{reason}",
+        "unban_done": "✅ تم رفع الحظر عن {mention} ويمكنه الانضمام مجدداً.",
+        "ban_admin": "🛡 هذا المستخدم مشرف — لا يمكنني تنفيذ هذا الإجراء.",
+        "ban_missing_target": "⚠️ لا يمكنني تحديد المستخدم المقصود.\nرد على رسالته أو أرسل @معرّفه أو رقمه.",
+
+        # ── Mute / Unmute ─────────────────────────────────────────────────────
+        "mute_done": "🔇 تم كتم {mention}.{reason}",
+        "mute_temp_done": "⏳ تم كتم {mention} لمدة <b>{duration}</b>.{reason}",
+        "unmute_done": "🔊 يستطيع {mention} إرسال الرسائل مجدداً.",
+        "mute_already": "ℹ️ هذا المستخدم مكتوم بالفعل.",
+        "unmute_already": "ℹ️ هذا المستخدم يمتلك حقوق إرسال كاملة بالفعل.",
+        "mute_admin": "🛡 هذا المستخدم مشرف — لا يمكنني كتمه.",
     },
 
     # =========================================================================

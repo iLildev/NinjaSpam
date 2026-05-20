@@ -39,10 +39,15 @@ from core.i18n import get_chat_lang, t, set_chat_lang, SUPPORTED_LANGUAGES
 from database.engine import get_session
 from database.models import ChatFeatureSettings, Chat
 from database.models_extra import (
+    AntiLinkMode,
+    AntiLinkSettings,
+    AntiRaidSettings,
     ChatLanguage,
     LockSettings,
     LogChannelSettings,
+    ReportSettings,
     WarnReason,
+    WelcomeSettings,
 )
 
 log = logging.getLogger(__name__)
@@ -56,6 +61,7 @@ _WAITING_WARN_LIMIT = "sp_warn_limit"
 _WAITING_WARN_EXPIRY = "sp_warn_expiry"
 _WAITING_WARN_REASON = "sp_warn_reason"
 _WAITING_LOG_CHANNEL = "sp_log_channel"
+_WAITING_FLOOD_LIMIT = "sp_flood_limit"
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +129,9 @@ async def _main_menu(chat_id: int, chat_title: str, lang: str) -> tuple[str, Inl
         [
             InlineKeyboardButton(t("settings_locks", lang), callback_data="sp:locks:menu:"),
             InlineKeyboardButton(t("settings_general", lang), callback_data="sp:general:menu:"),
+        ],
+        [
+            InlineKeyboardButton(t("settings_moderation", lang), callback_data="sp:moderation:menu:"),
         ],
         [InlineKeyboardButton(t("close", lang), callback_data="sp:main:close:")],
     ]
@@ -417,6 +426,67 @@ async def _general_menu(chat_id: int, lang: str) -> tuple[str, InlineKeyboardMar
             t("general_rules", lang),
             callback_data="sp:general:rules:"
         )],
+        [InlineKeyboardButton(t("back", lang), callback_data="sp:main:menu:")],
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
+
+
+async def _moderation_menu(chat_id: int, lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    """Flood control, anti-links, anti-raid, and reports settings."""
+    async with get_session() as session:
+        feat = await session.get(ChatFeatureSettings, chat_id)
+        flood_on = bool(feat.flood_control_enabled) if feat else False
+        flood_limit = feat.flood_messages_limit if feat else 5
+
+        al_row = await session.get(AntiLinkSettings, chat_id)
+        al_mode = al_row.mode if al_row else AntiLinkMode.OFF
+
+        raid_row = await session.get(AntiRaidSettings, chat_id)
+        raid_on = bool(raid_row.enabled) if raid_row else False
+
+        rep_row = await session.get(ReportSettings, chat_id)
+        rep_on = bool(rep_row.enabled) if rep_row else False
+
+    # Anti-link mode cycles: OFF → INVITE → ALL
+    mode_labels = {
+        AntiLinkMode.OFF:    t("antilinks_mode_off",    lang),
+        AntiLinkMode.INVITE: t("antilinks_mode_invite", lang),
+        AntiLinkMode.ALL:    t("antilinks_mode_all",    lang),
+    }
+    mode_cycle = {
+        AntiLinkMode.OFF:    AntiLinkMode.INVITE,
+        AntiLinkMode.INVITE: AntiLinkMode.ALL,
+        AntiLinkMode.ALL:    AntiLinkMode.OFF,
+    }
+
+    text = t("mod_menu_title", lang)
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                f"{_tog(flood_on)} {t('mod_flood', lang)}",
+                callback_data="sp:moderation:toggle_flood:",
+            ),
+            InlineKeyboardButton(
+                t("mod_flood_limit_btn", lang, limit=flood_limit or 5),
+                callback_data="sp:moderation:set_flood_limit:",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                mode_labels.get(al_mode, str(al_mode)),
+                callback_data=f"sp:moderation:cycle_links:{mode_cycle.get(al_mode, AntiLinkMode.INVITE).value}",
+            ),
+            InlineKeyboardButton(
+                f"{_tog(raid_on)} {t('mod_antiraid', lang)}",
+                callback_data="sp:moderation:toggle_raid:",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                f"{_tog(rep_on)} {t('mod_reports', lang)}",
+                callback_data="sp:moderation:toggle_reports:",
+            ),
+        ],
         [InlineKeyboardButton(t("back", lang), callback_data="sp:main:menu:")],
     ]
     return text, InlineKeyboardMarkup(keyboard)
@@ -834,6 +904,72 @@ async def _handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         return None
 
+    # ── MODERATION ────────────────────────────────────────────────────────────
+    if section == "moderation":
+        if action == "menu":
+            text, markup = await _moderation_menu(chat_id, lang)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+
+        elif action == "toggle_flood":
+            async with get_session() as session:
+                feat = await _get_or_create_feat(chat_id, session)
+                feat.flood_control_enabled = not feat.flood_control_enabled
+                if feat.flood_control_enabled and not feat.flood_messages_limit:
+                    feat.flood_messages_limit = 5
+            text, markup = await _moderation_menu(chat_id, lang)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+
+        elif action == "set_flood_limit":
+            async with get_session() as session:
+                feat = await _get_or_create_feat(chat_id, session)
+                current_limit = feat.flood_messages_limit or 5
+            context.user_data["sp_state"] = _WAITING_FLOOD_LIMIT
+            context.user_data["sp_chat_id"] = chat_id
+            context.user_data["sp_msg_id"] = query.message.message_id
+            await query.edit_message_text(
+                t("mod_flood_limit_prompt", lang, value=str(current_limit)),
+                parse_mode="HTML",
+            )
+            return _WAITING_FLOOD_LIMIT
+
+        elif action == "cycle_links" and value:
+            async with get_session() as session:
+                al = await session.get(AntiLinkSettings, chat_id)
+                if al is None:
+                    al = AntiLinkSettings(chat_id=chat_id, mode=AntiLinkMode(value))
+                    session.add(al)
+                else:
+                    try:
+                        al.mode = AntiLinkMode(value)
+                    except ValueError:
+                        al.mode = AntiLinkMode.OFF
+            text, markup = await _moderation_menu(chat_id, lang)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+
+        elif action == "toggle_raid":
+            async with get_session() as session:
+                raid = await session.get(AntiRaidSettings, chat_id)
+                if raid is None:
+                    raid = AntiRaidSettings(chat_id=chat_id, enabled=True)
+                    session.add(raid)
+                else:
+                    raid.enabled = not raid.enabled
+            text, markup = await _moderation_menu(chat_id, lang)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+
+        elif action == "toggle_reports":
+            async with get_session() as session:
+                rep = await session.get(ReportSettings, chat_id)
+                if rep is None:
+                    rep = ReportSettings(chat_id=chat_id, enabled=True)
+                    session.add(rep)
+                else:
+                    rep.enabled = not rep.enabled
+            text, markup = await _moderation_menu(chat_id, lang)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+
+        return None
+
     return None
 
 
@@ -966,6 +1102,20 @@ async def _handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reason = WarnReason(chat_id=chat_id, reason=text)
             session.add(reason)
         await update.effective_message.reply_text(t("warn_reason_added", lang, reason=text))
+
+    elif state == _WAITING_FLOOD_LIMIT:
+        try:
+            val = int(text)
+            assert 3 <= val <= 50
+        except (ValueError, AssertionError):
+            await update.effective_message.reply_text(t("mod_flood_limit_invalid", lang))
+            return _WAITING_FLOOD_LIMIT
+        async with get_session() as session:
+            feat = await _get_or_create_feat(chat_id, session)
+            feat.flood_messages_limit = val
+            if not feat.flood_control_enabled:
+                feat.flood_control_enabled = True
+        await update.effective_message.reply_text(t("mod_flood_limit_set", lang, value=str(val)))
 
     elif state == _WAITING_LOG_CHANNEL:
         # Accept forwarded message from channel or numeric ID

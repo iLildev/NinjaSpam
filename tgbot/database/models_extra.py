@@ -2238,6 +2238,76 @@ class LangFilterSettings(Base):
 
 
 # ---------------------------------------------------------------------------
+# Strict Mode — per-chat settings + per-member tracking
+# ---------------------------------------------------------------------------
+
+class StrictModeSettings(Base):
+    """
+    Per-chat configuration for Strict Mode (Shieldy-inspired).
+
+    When enabled, every new member who joins is temporarily restricted from
+    sending media (photos, videos, stickers, GIFs, audio, documents, polls)
+    for ``duration_hours`` hours.  They can still send plain text messages.
+    After the duration expires a scheduled job restores full permissions.
+    """
+
+    __tablename__ = "strict_mode_settings"
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        comment="Master toggle for strict mode.",
+    )
+    duration_hours: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=24,
+        comment="Hours new members are restricted from sending media.",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<StrictModeSettings chat={self.chat_id} "
+            f"enabled={self.enabled} hours={self.duration_hours}>"
+        )
+
+
+class StrictMember(Base):
+    """
+    Tracks individual members currently under a strict-mode restriction.
+
+    A row is created when a new member joins a strict-mode-enabled group and
+    removed once the scheduled job successfully lifts the restriction.
+    """
+
+    __tablename__ = "strict_members"
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True,
+    )
+    restrict_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+        comment="UTC timestamp when the media restriction should be lifted.",
+    )
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<StrictMember chat={self.chat_id} user={self.user_id} "
+            f"until={self.restrict_until}>"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Phishing Detection — per-chat settings
 # ---------------------------------------------------------------------------
 

@@ -15,6 +15,7 @@ All mutating actions are logged via @loggable.
 
 from __future__ import annotations
 
+import html
 import logging
 from typing import Optional
 
@@ -120,7 +121,12 @@ async def promote(
     from core.helpers.chat_status import invalidate_admin_cache
     invalidate_admin_cache(chat.id, user_id)
 
-    await message.reply_text(f"Promoted user {user_id} to administrator.")
+    await message.reply_html(
+        f"⭐ <b>Admin Promoted!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+    )
     return log_msg
 
 
@@ -202,7 +208,12 @@ async def demote(
     from core.helpers.chat_status import invalidate_admin_cache
     invalidate_admin_cache(chat.id, user_id)
 
-    await message.reply_text(f"Demoted user {user_id}.")
+    await message.reply_html(
+        f"⬇️ <b>Admin Demoted!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> <a href='tg://user?id={user_id}'>{user_id}</a>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+    )
     return log_msg
 
 
@@ -255,8 +266,11 @@ async def pin(
             await message.reply_text(f"Failed to pin: {exc.message}")
         return None
 
+    mode = "🔔 with notification" if is_loud else "🔕 silently"
+    await message.reply_html(f"📌 <b>Message pinned</b> {mode}.")
+
     log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#PIN\n"
         f"<b>Admin:</b> {user.mention_html()}\n"
         f"<b>Loud:</b> {is_loud}"
@@ -291,13 +305,13 @@ async def unpin(
             await message.reply_text(f"Failed to unpin: {exc.message}")
         return None
 
+    await message.reply_html("📌 <b>Message unpinned.</b>")
+
     log_msg: str = (
-        f"<b>{chat.title}:</b>\n"
+        f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#UNPIN\n"
         f"<b>Admin:</b> {user.mention_html()}"
     )
-
-    await message.reply_text("Unpinned the current message.")
     return log_msg
 
 
@@ -363,19 +377,21 @@ async def adminlist(
         await message.reply_text(f"Couldn't retrieve admin list: {exc.message}")
         return
 
-    lines: list[str] = ["<b>Administrators:</b>"]
+    lines: list[str] = [f"<b>👥 Admins in {html.escape(chat.title or 'this group')}:</b>\n"]
     for admin in admins:
         admin_user = admin.user
         if admin_user.is_bot:
             continue
         if admin_user.username:
-            ref: str = f'<a href="https://t.me/{admin_user.username}">{admin_user.first_name}</a>'
+            ref: str = f'<a href="https://t.me/{admin_user.username}">{html.escape(admin_user.first_name)}</a>'
         else:
-            ref = f'<a href="tg://user?id={admin_user.id}">{admin_user.first_name}</a>'
+            ref = f'<a href="tg://user?id={admin_user.id}">{html.escape(admin_user.first_name)}</a>'
 
-        title: str = f" — {admin.custom_title}" if getattr(admin, "custom_title", None) else ""
-        status: str = " [creator]" if admin.status == ChatMember.OWNER else ""
-        lines.append(f"• {ref}{title}{status}")
+        title: str = f" — <i>{html.escape(admin.custom_title)}</i>" if getattr(admin, "custom_title", None) else ""
+        if admin.status == ChatMember.OWNER:
+            lines.append(f"👑 {ref}{title}")
+        else:
+            lines.append(f"🔱 {ref}{title}")
 
     await message.reply_text(
         "\n".join(lines),
@@ -419,7 +435,9 @@ async def reload_admins(
         invalidate_admin_cache(chat.id, admin.user.id)
 
     await message.reply_html(
-        f"✅ Admin cache refreshed — <b>{len(admins)}</b> admin(s) found."
+        f"🔄 <b>Admin list refreshed!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👥 <b>Admins found:</b> {len(admins)}"
     )
 
 

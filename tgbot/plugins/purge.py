@@ -124,11 +124,10 @@ async def purge(
 
     confirm = await context.bot.send_message(
         chat_id=chat.id,
-        text=f"✅ Purged <b>{deleted}</b> messages.",
+        text=f"🗑 <b>Purged {deleted} message(s).</b>",
         parse_mode=ParseMode.HTML,
     )
-    # Auto-delete the confirmation after 5 seconds.
-    await asyncio.sleep(5)
+    await asyncio.sleep(3)
     try:
         await confirm.delete()
     except BadRequest:
@@ -211,10 +210,10 @@ async def purgefrom(
 
     confirm = await context.bot.send_message(
         chat_id=chat.id,
-        text=f"✅ Purged <b>{deleted}</b> messages.",
+        text=f"🗑 <b>Purged {deleted} message(s).</b>",
         parse_mode=ParseMode.HTML,
     )
-    await asyncio.sleep(5)
+    await asyncio.sleep(3)
     try:
         await confirm.delete()
     except BadRequest:

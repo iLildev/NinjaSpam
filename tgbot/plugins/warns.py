@@ -262,10 +262,13 @@ async def _do_warn(
             "\n<b>Reasons:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(all_reasons))
             if all_reasons else ""
         )
-        await message.reply_text(
-            f"⚠️ {mention} has been <b>{action_text}</b> "
-            f"after accumulating <b>{warn_limit}</b> warnings.{reasons_block}",
-            parse_mode=ParseMode.HTML,
+        await message.reply_html(
+            f"🚨 <b>Warn Limit Reached!</b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"👤 <b>User:</b> {mention}\n"
+            f"📊 <b>Warns:</b> [▓▓▓▓▓▓▓▓] {warn_limit}/{warn_limit}\n"
+            f"⚡ <b>Action:</b> {action_text.title()}"
+            f"{reasons_block}"
         )
         log_msg: str = (
             f"<b>{html.escape(chat.title or '')}:</b>\n"
@@ -277,16 +280,21 @@ async def _do_warn(
         )
         return log_msg
 
-    # Under threshold — show count with inline "Remove warn" button.
+    # Under threshold — show count with progress bar and inline "Remove warn" button.
+    filled = round((warn_count / warn_limit) * 8)
+    bar = "▓" * filled + "░" * (8 - filled)
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(
-            f"🗑 Remove latest warn",
+            "❌ Remove warn",
             callback_data=f"rmwarn_{chat_id}_{user_id}",
         )]]
     )
-    await message.reply_text(
-        f"⚠️ {mention} now has <b>{warn_count}/{warn_limit}</b> warnings.{reason_line}",
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"⚠️ <b>Warning Issued!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warns:</b> [{bar}] {warn_count}/{warn_limit}"
+        f"{reason_line}",
         reply_markup=keyboard,
     )
     log_msg = (
@@ -449,14 +457,19 @@ async def warns(
         )
         return
 
+    filled = round((count / warn_limit) * 8)
+    bar = "▓" * filled + "░" * (8 - filled)
     reasons_block: str = (
-        "\n<b>Reasons:</b>\n" + "\n".join(f"  {i + 1}. {html.escape(r)}" for i, r in enumerate(reasons))
+        "\n\n<b>📋 Reasons:</b>\n" + "\n".join(f"  {i + 1}. {html.escape(r)}" for i, r in enumerate(reasons))
         if reasons
         else ""
     )
-    await message.reply_text(
-        t("warns_count", lang, mention=mention, count=count, limit=warn_limit) + reasons_block,
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"📊 <b>Warn Status</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warns:</b> [{bar}] {count}/{warn_limit}"
+        f"{reasons_block}"
     )
 
 
@@ -497,9 +510,11 @@ async def reset_warns(
             member.warn_count = 0
 
     mention = await _mention_from_id(context, user_id, update)
-    await message.reply_text(
-        t("warns_cleared", lang, mention=mention),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"🗑 <b>Warns Cleared!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warns:</b> [░░░░░░░░] 0/{warn_limit}"
     )
 
 

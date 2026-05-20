@@ -138,9 +138,12 @@ async def ban(
         logger.debug("Could not write BanRecord: %s", _e)
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
-    await message.reply_text(
-        t("ban_done", lang, mention=mention, reason=reason_line),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"🔨 <b>User Banned!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+        f"{reason_line}"
     )
 
     log_msg: str = (
@@ -230,9 +233,13 @@ async def temp_ban(
         return None
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
-    await message.reply_text(
-        t("ban_temp_done", lang, mention=mention, duration=html.escape(time_str), reason=reason_line),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"⏳ <b>Temp Ban!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"⏱ <b>Duration:</b> <code>{html.escape(time_str)}</code>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+        f"{reason_line}"
     )
 
     log_msg: str = (
@@ -297,9 +304,12 @@ async def kick(
         return None
 
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
-    await message.reply_text(
-        t("kick_done", lang, mention=mention, reason=reason_line),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"👢 <b>User Kicked!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+        f"{reason_line}"
     )
 
     log_msg: str = (
@@ -407,9 +417,11 @@ async def unban(
     except Exception as _e:
         logger.debug("Could not update BanRecord on unban: %s", _e)
 
-    await message.reply_text(
-        t("unban_done", lang, mention=mention),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"✅ <b>User Unbanned!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
     )
 
     log_msg: str = (

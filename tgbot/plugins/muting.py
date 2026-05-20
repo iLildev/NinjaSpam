@@ -173,9 +173,12 @@ async def mute(
     mention = await _user_mention(user_id, update, context)
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
-    await message.reply_text(
-        t("mute_done", lang, mention=mention, reason=reason_line),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"🔇 <b>User Muted!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+        f"{reason_line}"
     )
 
     log_msg: str = (
@@ -268,9 +271,13 @@ async def temp_mute(
     mention = await _user_mention(user_id, update, context)
     reason_line: str = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
-    await message.reply_text(
-        t("mute_temp_done", lang, mention=mention, duration=html.escape(time_str), reason=reason_line),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"⏱ <b>Temp Mute!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"⏳ <b>Duration:</b> <code>{html.escape(time_str)}</code>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
+        f"{reason_line}"
     )
 
     log_msg: str = (
@@ -348,9 +355,11 @@ async def unmute(
 
     mention = await _user_mention(user_id, update, context)
 
-    await message.reply_text(
-        t("unmute_done", lang, mention=mention),
-        parse_mode=ParseMode.HTML,
+    await message.reply_html(
+        f"🔊 <b>User Unmuted!</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
     )
 
     log_msg: str = (

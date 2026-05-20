@@ -141,6 +141,7 @@ async def init_db() -> None:
     import database.farm_models  # noqa: F401
     import database.payment_models  # noqa: F401
     import database.ninja_models  # noqa: F401
+    import database.connect_models  # noqa: F401
 
     async with _engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)

@@ -1,28 +1,21 @@
 """
-plugins/account.py — نظام تسجيل الحسابات والمدفوعات.
+plugins/account.py — نظام الحسابات الوهمية 🎮 (للمتعة فقط — لا علاقة له بالمال الحقيقي).
 
-عند أول /start في المحادثة الخاصة يُطلب من المستخدم إنشاء حساب وتسجيل
-طريقة دفع واحدة على الأقل قبل استخدام ميزات السحب.
+اللاعب ينشئ هوية وهمية داخل اللعبة لمحافظ خيالية:
+  الكريمي الوهمي 💳 | الراجحي الوهمي 🏦 | PayPal الوهمي 🌐
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 الأوامر:
   /start          — بدء التسجيل (في المحادثة الخاصة)
-  /my_account     — عرض معلومات حسابك وطرق الدفع
-  /add_payment    — إضافة أو تحديث طريقة دفع
-  /remove_payment — حذف طريقة دفع مسجّلة
-  /set_primary    — تحديد طريقة الدفع الافتراضية
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-طرق الدفع المدعومة:
-  💳 الكريمي  — رقم الجوال المسجّل في الكريمي
-  🏦 الراجحي  — رقم الآيبان أو رقم الحساب
-  🌐 PayPal   — البريد الإلكتروني
+  /my_account     — عرض هويتك الوهمية في اللعبة
+  /add_payment    — إضافة/تحديث محفظة وهمية
+  /remove_payment — حذف محفظة وهمية
+  /set_primary    — تحديد المحفظة الوهمية الافتراضية
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -101,29 +94,16 @@ async def _get_accounts(session, user_id: int) -> list[PaymentAccount]:
 
 
 def _validate_identifier(method: PaymentMethod, identifier: str) -> tuple[bool, str]:
-    """تحقق بسيط من صحة المدخل حسب طريقة الدفع."""
+    """
+    تحقق بسيط — هذه هويات وهمية للمتعة فقط.
+    الشرط الوحيد: بين 2 و100 حرف.
+    """
     identifier = identifier.strip()
-    if not identifier or len(identifier) < 5:
-        return False, "❌ المدخل قصير جداً — أدخل قيمة صحيحة."
-    if len(identifier) > 200:
-        return False, "❌ المدخل طويل جداً — لا يتجاوز 200 حرف."
-
-    if method == PaymentMethod.PAYPAL:
-        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", identifier):
-            return False, "❌ البريد الإلكتروني غير صحيح. مثال: name@example.com"
-
-    if method == PaymentMethod.ALKARIMI:
-        digits_only = re.sub(r"\D", "", identifier)
-        if len(digits_only) not in (9, 10):
-            return False, "❌ رقم الجوال يجب أن يحتوي 9 أو 10 أرقام.\nمثال: 0501234567"
-
-    if method == PaymentMethod.ALRAJHI:
-        # IBAN سعودي يبدأ بـ SA ويتكون من 24 حرفاً، أو رقم حساب عادي
-        iban_clean = identifier.replace(" ", "").upper()
-        if iban_clean.startswith("SA") and len(iban_clean) != 24:
-            return False, "❌ رقم الآيبان السعودي يجب أن يكون 24 حرفاً (SA + 22 رقماً)."
-
-    return True, identifier.strip()
+    if not identifier or len(identifier) < 2:
+        return False, "❌ الاسم الوهمي قصير جداً — أدخل حرفين على الأقل."
+    if len(identifier) > 100:
+        return False, "❌ الاسم الوهمي طويل جداً — لا يتجاوز 100 حرف."
+    return True, identifier
 
 
 def _render_accounts(accounts: list[PaymentAccount]) -> str:
@@ -176,22 +156,23 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # مستخدم مسجّل — عرض ملخص
         await update.message.reply_text(
             f"👋 أهلاً {user.first_name}!\n\n"
-            f"✅ حسابك مُسجَّل.\n\n"
-            f"<b>طرق الدفع المسجّلة:</b>\n"
+            f"✅ هويتك الوهمية مُسجَّلة.\n\n"
+            f"<b>محافظك الوهمية 🎮:</b>\n"
             f"{_render_accounts(accounts)}\n\n"
-            f"الأوامر المتاحة:\n"
-            f"  /my_account    — تفاصيل الحساب\n"
-            f"  /add_payment   — إضافة/تحديث طريقة دفع\n"
-            f"  /remove_payment — حذف طريقة دفع\n"
-            f"  /set_primary   — تغيير طريقة الدفع الافتراضية"
+            f"الأوامر:\n"
+            f"  /my_account     — تفاصيل هويتك\n"
+            f"  /add_payment    — إضافة/تحديث محفظة وهمية\n"
+            f"  /remove_payment — حذف محفظة وهمية\n"
+            f"  /set_primary    — تغيير المحفظة الافتراضية"
         )
         return ConversationHandler.END
 
     # مستخدم جديد — ابدأ التسجيل
     await update.message.reply_text(
         f"🌟 <b>مرحباً {user.first_name}!</b>\n\n"
-        f"لإكمال تسجيل حسابك، تحتاج إلى ربط طريقة دفع واحدة على الأقل.\n\n"
-        f"اختر طريقة الدفع:",
+        f"🎮 هذا النظام <b>وهمي تماماً</b> — للمتعة والتمثيل داخل المجموعة فقط.\n"
+        f"لا يتصل بأي حساب مصرفي حقيقي.\n\n"
+        f"اختر <b>محفظتك الوهمية</b> لتسجيل هويتك:",
         reply_markup=_method_keyboard(),
     )
     return CHOOSE_METHOD
@@ -207,8 +188,8 @@ async def cmd_add_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ConversationHandler.END
 
     await update.message.reply_text(
-        "💳 <b>إضافة طريقة دفع</b>\n\n"
-        "اختر الطريقة التي تريد إضافتها أو تحديثها:",
+        "💳 <b>إضافة محفظة وهمية 🎮</b>\n\n"
+        "اختر المحفظة الوهمية التي تريد إضافة هويتك فيها:",
         reply_markup=_method_keyboard(),
     )
     return CHOOSE_METHOD
@@ -236,8 +217,9 @@ async def cb_choose_method(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     context.user_data[_KEY_METHOD] = method.value
     await query.edit_message_text(
-        f"<b>{method.arabic_name}</b>\n\n"
+        f"<b>{method.arabic_name}</b> — وهمية 🎮\n\n"
         f"{method.input_hint}\n\n"
+        f"💡 أي اسم أو نص يناسبك — هذا للمتعة فقط!\n"
         f"أو أرسل /cancel للإلغاء."
     )
     return ENTER_ACCOUNT
@@ -279,7 +261,11 @@ async def msg_enter_account(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if acc:
             old_id = acc.account_identifier
             acc.account_identifier = identifier
-            action = f"🔄 تم تحديث حساب <b>{method.arabic_name}</b>.\n\nالقديم: <code>{old_id}</code>\nالجديد: <code>{identifier}</code>"
+            action = (
+                f"🔄 تم تحديث هويتك الوهمية في <b>{method.arabic_name}</b>.\n\n"
+                f"القديم: <code>{old_id}</code>\n"
+                f"الجديد: <code>{identifier}</code>"
+            )
         else:
             # تحقق إن كان هذا أول حساب — يصبح رئيسياً تلقائياً
             all_accts = await _get_accounts(session, user.id)
@@ -291,7 +277,11 @@ async def msg_enter_account(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 account_identifier = identifier,
                 is_primary         = is_primary,
             ))
-            action = f"✅ تم تسجيل حساب <b>{method.arabic_name}</b>.\nالمعرّف: <code>{identifier}</code>"
+            action = (
+                f"✅ تم تسجيل هويتك الوهمية في <b>{method.arabic_name}</b>!\n"
+                f"المعرّف الوهمي: <code>{identifier}</code>\n\n"
+                f"🎮 هذا للمتعة فقط — لا علاقة له بالمال الحقيقي."
+            )
 
         # تحديث ملف المستخدم وتعيينه كمسجّل
         profile = await _get_profile(session, user.id)
@@ -344,8 +334,8 @@ async def cmd_my_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not profile or not profile.is_registered:
         await update.message.reply_text(
-            "📋 لم تُكمل التسجيل بعد.\n"
-            "ابدأ بـ /start لإنشاء حسابك."
+            "📋 لم تُسجّل هويتك الوهمية بعد.\n"
+            "ابدأ بـ /start لإنشاء شخصيتك في اللعبة."
         )
         return
 
@@ -354,16 +344,17 @@ async def cmd_my_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reg_date = profile.registered_at.strftime("%Y-%m-%d")
 
     await update.message.reply_text(
-        f"👤 <b>حسابك</b>\n"
+        f"🎮 <b>هويتك الوهمية</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"الاسم: <b>{profile.first_name}</b>\n"
         f"المعرّف: {'@' + profile.username if profile.username else '—'}\n"
         f"تاريخ التسجيل: {reg_date}\n\n"
-        f"<b>طرق الدفع ({len(accounts)}):</b>\n"
+        f"<b>محافظك الوهمية ({len(accounts)}) 🎮:</b>\n"
         f"{_render_accounts(accounts)}\n\n"
+        f"⚠️ هذا النظام وهمي للمتعة فقط — لا يتصل بأي جهة مالية حقيقية.\n\n"
         f"الإدارة:\n"
-        f"  /add_payment    — إضافة/تحديث\n"
-        f"  /remove_payment — حذف\n"
+        f"  /add_payment    — إضافة/تحديث محفظة\n"
+        f"  /remove_payment — حذف محفظة\n"
         f"  /set_primary    — تغيير الافتراضي"
     )
 

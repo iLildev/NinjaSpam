@@ -36,7 +36,7 @@ def _require(key: str) -> str:
             file=sys.stderr,
         )
         sys.exit(1)
-    return value
+    return value.strip()
 
 
 def _optional(key: str, default: str = "") -> str:

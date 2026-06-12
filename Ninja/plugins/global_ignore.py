@@ -17,7 +17,7 @@ import logging
 
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from config import OWNER_IDS
 from core.helpers.extraction import extract_user_and_text
@@ -25,9 +25,25 @@ from db.repositories import global_ignore as ignore_repo
 
 logger = logging.getLogger(__name__)
 
+IGNORE_GROUP = 5  # runs before global_bans (group 6) and all other handlers
+
 
 async def _is_ignored(user_id: int) -> bool:
     return await ignore_repo.is_ignored(user_id)
+
+
+async def enforce_ignore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Silently delete messages from globally ignored users (owners are exempt)."""
+    user = update.effective_user
+    if not user or user.id in OWNER_IDS:
+        return
+    if not await ignore_repo.is_ignored(user.id):
+        return
+    try:
+        if update.effective_message:
+            await update.effective_message.delete()
+    except Exception:
+        pass  # no delete permission — silently skip
 
 
 async def ignore_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -98,3 +114,8 @@ async def register(application: Application) -> None:
     application.add_handler(CommandHandler("ignore", ignore_user, filters=owner_filter))
     application.add_handler(CommandHandler("notice", notice_user, filters=owner_filter))
     application.add_handler(CommandHandler("ignoredlist", ignored_list, filters=owner_filter))
+    # Enforce ignore: runs before all other message handlers (group 5)
+    application.add_handler(
+        MessageHandler(filters.ChatType.GROUPS & ~filters.User(user_id=list(OWNER_IDS)), enforce_ignore),
+        group=IGNORE_GROUP,
+    )

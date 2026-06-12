@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 @user_admin
 async def cmd_setlang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "🇸🇦 Bot language is fixed to <b>Arabic</b> and is the only supported language.",
+        "🌐 Bot language is fixed to <b>English</b>. No other languages are supported.",
         parse_mode=ParseMode.HTML,
     )
-    logger.info("setlang: Language change request from chat %d — language is fixed to ar", update.effective_chat.id)
+    logger.info("setlang: Language change request from chat %d — language is fixed to en", update.effective_chat.id)
 
 
 async def register(application: Application) -> None:

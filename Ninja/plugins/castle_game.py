@@ -93,10 +93,10 @@ RESOURCE_PRICES: dict[str, tuple[int, int, str]] = {
 }
 
 RESOURCE_ALIASES: dict[str, str] = {
-    "wood": "wood", "wood": "wood",
-    "stone": "stone", "stone": "stone",
-    "food": "food", "food": "food",
-    "gold": "gold", "gold": "gold",
+    "wood":  "wood",
+    "stone": "stone",
+    "food":  "food",
+    "gold":  "gold",
 }
 
 # Castle upgrade requirements per level {current_level: (wood, stone, food, gold, cooldown_minutes)}

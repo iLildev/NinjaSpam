@@ -304,8 +304,12 @@ async def report_action_callback(
             await context.bot.ban_chat_member(chat_id=chat_id, user_id=reported_user_id)
             result_text = f"🔨 User banned by {admin.mention_html()}."
         except TelegramError as e:
-            await query.answer(f"Failed: {e.message}", show_alert=True)
-            return
+            msg = e.message.lower()
+            if "user_already_participant" in msg or "user not found" in msg or "already" in msg:
+                result_text = f"🔨 User was already removed/banned (action by {admin.mention_html()})."
+            else:
+                await query.answer(f"Failed: {e.message}", show_alert=True)
+                return
 
     elif action == "kick":
         try:
@@ -313,20 +317,24 @@ async def report_action_callback(
             await context.bot.unban_chat_member(chat_id=chat_id, user_id=reported_user_id)
             result_text = f"👢 User kicked by {admin.mention_html()}."
         except TelegramError as e:
-            await query.answer(f"Failed: {e.message}", show_alert=True)
-            return
+            msg = e.message.lower()
+            if "user not found" in msg or "already" in msg:
+                result_text = f"👢 User already left/was removed (action by {admin.mention_html()})."
+            else:
+                await query.answer(f"Failed: {e.message}", show_alert=True)
+                return
 
     elif action == "mute":
         try:
             from datetime import datetime, timezone, timedelta
-            until = datetime.now(tz=timezone.utc) + timedelta(hours=24)
+            until = datetime.now(tz=timezone.utc) + timedelta(hours=1)
             await context.bot.restrict_chat_member(
                 chat_id=chat_id,
                 user_id=reported_user_id,
                 permissions=_MUTE_PERMISSIONS,
                 until_date=until,
             )
-            result_text = f"🔇 User muted 24h by {admin.mention_html()}."
+            result_text = f"🔇 User muted 1h by {admin.mention_html()}."
         except TelegramError as e:
             await query.answer(f"Failed: {e.message}", show_alert=True)
             return

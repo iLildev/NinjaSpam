@@ -303,11 +303,7 @@ async def greet_new_member(
             except BadRequest:
                 pass
 
-        # Special welcome for bot owner.
-        if new_member.id == cfg.OWNER_ID:
-            raw_text = "My master has arrived! 🎉"
-        else:
-            raw_text = settings.welcome_text or _DEFAULT_WELCOME
+        raw_text = settings.welcome_text or _DEFAULT_WELCOME
 
         filled: str = await _fill_template(raw_text, new_member, chat, context)
 

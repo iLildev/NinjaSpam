@@ -580,24 +580,15 @@ async def _complete_verification(
 
     effective_msg_id = challenge_message_id or msg_id
 
-    # Restore permissions
+    # Restore permissions — use the chat's actual default permissions so we
+    # don't accidentally grant rights the group has disabled for everyone.
     try:
+        chat = await bot.get_chat(chat_id)
+        restore_perms = chat.permissions or ChatPermissions(can_send_messages=True)
         await bot.restrict_chat_member(
             chat_id=chat_id,
             user_id=user_id,
-            permissions=ChatPermissions(
-                can_send_messages=True,
-                can_send_audios=True,
-                can_send_documents=True,
-                can_send_photos=True,
-                can_send_videos=True,
-                can_send_video_notes=True,
-                can_send_voice_notes=True,
-                can_send_polls=True,
-                can_send_other_messages=True,
-                can_add_web_page_previews=True,
-                can_invite_users=True,
-            ),
+            permissions=restore_perms,
         )
     except Exception as exc:
         log.warning(

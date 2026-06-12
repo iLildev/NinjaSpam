@@ -1,22 +1,22 @@
 """
-economy/plugin.py — نظام الاقتصاد الوهمي الكامل.
+economy/plugin.py — Full virtual economy system.
 
-الأوامر:
-  /richlist    — توب أغنى 20 شخص
-  /openbank    — فتح حساب بنكي
-  /closebank   — مسح الحساب البنكي
-  /transfer    — تحويل (محادثة من خطوتين)
-  /mybank      — عرض حسابي البنكي
-  /balance     — رصيدي
-  /checkbal    — رصيد شخص آخر (رد أو منشن)
-  /salary      — راتب (كل 20 دقيقة)
-  /bonus       — بخشيش (كل 10 دقائق)
-  /steal       — سرقة (كل 10 دقائق، رد على شخص)
-  /thieftop    — توب الحراميه
-  /invest      — استثمار (ربح 0-9%)
-  /luck        — حظ (50% تضاعف / 50% تخسر)
-  /trade       — مضاربة (-90% إلى +90%)
-  /top         — توب الفلوس + توب الحراميه
+Commands:
+  /richlist    — Top 20 wealthiest people
+  /openbank    — Open bank account
+  /closebank   — Delete bank account
+  /transfer    — Transfer (two-step conversation)
+  /mybank      — Show my bank account
+  /balance     — My balance
+  /checkbal    — Someone else's balance (reply or mention)
+  /salary      — Salary (every 20 minutes)
+  /bonus       — Bonus (every 10 minutes)
+  /steal       — Steal (every 10 minutes, reply to someone)
+  /thieftop    — Thief Top
+  /invest      — Invest (0-9% profit)
+  /luck        — Luck (50% double / 50% lose)
+  /trade       — Trade (-90% to +90%)
+  /top         — Wealth Top + Thief Top
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ def _utcnow() -> datetime:
 
 
 def _remaining(last_at: Optional[datetime], cooldown: timedelta) -> Optional[str]:
-    """أرجع نصّ الوقت المتبقّي إن كان الـ cooldown لم ينتهِ بعد، وإلا None."""
+    """Return remaining time string if cooldown hasn't expired, else None."""
     if last_at is None:
         return None
     diff = cooldown - (_utcnow() - last_at)
@@ -90,18 +90,18 @@ def _remaining(last_at: Optional[datetime], cooldown: timedelta) -> Optional[str
         return None
     total = int(diff.total_seconds())
     mins, secs = divmod(total, 60)
-    return f"{mins}د {secs}ث"
+    return f"{mins}m {secs}s"
 
 
 async def _resolve_target(update: Update) -> Optional[int]:
-    """استخرج user_id الهدف من الرد أو المنشن في النص."""
+    """Extract target user_id from reply or mention in text."""
     msg: Message = update.effective_message
     if msg.reply_to_message and msg.reply_to_message.from_user:
         return msg.reply_to_message.from_user.id
     if msg.entities:
         for entity in msg.entities:
             if entity.type == "mention" and msg.text:
-                # @username mention — لا يمكن تحويله لـ user_id بدون البحث في DB
+                # @username mention — cannot be resolved to user_id without DB search
                 return None
             if entity.type == "text_mention" and entity.user:
                 return entity.user.id
@@ -109,7 +109,7 @@ async def _resolve_target(update: Update) -> Optional[int]:
 
 
 # ---------------------------------------------------------------------------
-# /richlist  — توب الفلوس
+# /richlist  — Wealth Top
 # ---------------------------------------------------------------------------
 
 async def cmd_richlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -122,7 +122,7 @@ async def cmd_richlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )).all()
 
     if not rows:
-        await update.message.reply_text("🏦 لا يوجد أحد في القائمة بعد!")
+        await update.message.reply_text("🏦 No one is on the list yet!")
         return
 
     medals = ["🥇", "🥈", "🥉"]
@@ -132,12 +132,12 @@ async def cmd_richlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         name = fmt_user(fname, uname)
         lines.append(f"{medal} {name} — <b>{fmt_coins(coins)}</b> 💰")
 
-    text = "✯ <b>توب الفلوس</b>\n\n" + "\n".join(lines)
+    text = "✯ <b>Wealth Top</b>\n\n" + "\n".join(lines)
     await update.message.reply_text(text, parse_mode="HTML")
 
 
 # ---------------------------------------------------------------------------
-# /openbank  — إنشاء حساب بنكي
+# /openbank  — Create Bank Account
 # ---------------------------------------------------------------------------
 
 async def cmd_openbank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -146,24 +146,24 @@ async def cmd_openbank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         existing = await get_bank_account_by_user(session, user.id)
         if existing:
             await update.message.reply_text(
-                f"🏦 لديك حساب بنكي بالفعل!\n\n"
-                f"رقم حسابك: <code>{existing.account_number}</code>",
+                f"🏦 You already have a bank account!\n\n"
+                f"Account Number: <code>{existing.account_number}</code>",
                 parse_mode="HTML",
             )
             return
         account = await create_bank_account(session, user.id, user.first_name, user.username)
 
     await update.message.reply_text(
-        f"✅ <b>تم فتح حسابك البنكي!</b>\n\n"
-        f"👤 الاسم: {user.first_name}\n"
-        f"🔢 رقم الحساب: <code>{account.account_number}</code>\n\n"
-        f"احفظ رقم حسابك وشاركه مع من يريد يحوّل لك فلوس 💳",
+        f"✅ <b>Bank account opened!</b>\n\n"
+        f"👤 Name: {user.first_name}\n"
+        f"🔢 Account Number: <code>{account.account_number}</code>\n\n"
+        f"Save your account number and share it with those who want to transfer money to you 💳",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /closebank  — مسح الحساب البنكي
+# /closebank  — Delete Bank Account
 # ---------------------------------------------------------------------------
 
 async def cmd_closebank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -171,18 +171,18 @@ async def cmd_closebank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     async with get_session() as session:
         account = await get_bank_account_by_user(session, user.id)
         if not account:
-            await update.message.reply_text("❌ ليس لديك حساب بنكي لمسحه.")
+            await update.message.reply_text("❌ You don't have a bank account to delete.")
             return
         await session.delete(account)
 
     await update.message.reply_text(
-        "🗑️ تم مسح حسابك البنكي.\n"
-        "يمكنك فتح حساب جديد في أي وقت بـ /openbank"
+        "🗑️ Your bank account has been deleted.\n"
+        "You can open a new account anytime with /openbank"
     )
 
 
 # ---------------------------------------------------------------------------
-# /mybank  — حسابي
+# /mybank  — My Account
 # ---------------------------------------------------------------------------
 
 async def cmd_mybank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -191,33 +191,33 @@ async def cmd_mybank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         account = await get_bank_account_by_user(session, user.id)
         if not account:
             await update.message.reply_text(
-                "❌ ليس لديك حساب بنكي.\n"
-                "افتح حساباً بـ /openbank"
+                "❌ You don't have a bank account.\n"
+                "Open one with /openbank"
             )
             return
         wallet = await get_wallet(session, user.id)
 
     await update.message.reply_text(
-        f"🏦 <b>حسابي البنكي</b>\n\n"
-        f"👤 الاسم: {account.owner_first_name}\n"
-        f"🔢 رقم الحساب: <code>{account.account_number}</code>\n"
-        f"💰 الرصيد: <b>{fmt_coins(wallet.coins)} عملة</b>\n"
-        f"📅 تاريخ الفتح: {account.created_at.strftime('%Y-%m-%d')}",
+        f"🏦 <b>My Bank Account</b>\n\n"
+        f"👤 Name: {account.owner_first_name}\n"
+        f"🔢 Account Number: <code>{account.account_number}</code>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>\n"
+        f"📅 Date Opened: {account.created_at.strftime('%Y-%m-%d')}",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /transfer  — تحويل (ConversationHandler)
+# /transfer  — Transfer (ConversationHandler)
 # ---------------------------------------------------------------------------
 
 async def cmd_transfer_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     args = context.args
     if not args or not args[0].isdigit() or int(args[0]) <= 0:
         await update.message.reply_text(
-            "📤 <b>تحويل</b>\n\n"
-            "الاستخدام: /transfer <المبلغ>\n"
-            "مثال: /transfer 500",
+            "📤 <b>Transfer</b>\n\n"
+            "Usage: /transfer <amount>\n"
+            "Example: /transfer 500",
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -225,8 +225,8 @@ async def cmd_transfer_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     amount = int(args[0])
     context.user_data["transfer_amount"] = amount
     await update.message.reply_text(
-        f"💸 سيتم تحويل <b>{fmt_coins(amount)} عملة</b>\n\n"
-        f"أرسل الآن <b>رقم حساب</b> المستلم:",
+        f"💸 Preparing to transfer <b>{fmt_coins(amount)} coins</b>\n\n"
+        f"Now send the recipient's <b>account number</b>:",
         parse_mode="HTML",
     )
     return TRANSFER_WAIT_ACCOUNT
@@ -239,7 +239,7 @@ async def cmd_transfer_account(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if not account_number.isdigit() or len(account_number) != 10:
         await update.message.reply_text(
-            "❌ رقم الحساب يجب أن يكون 10 أرقام. حاول مرة ثانية أو /cancel للإلغاء."
+            "❌ Account number must be 10 digits. Try again or /cancel to abort."
         )
         return TRANSFER_WAIT_ACCOUNT
 
@@ -247,26 +247,26 @@ async def cmd_transfer_account(update: Update, context: ContextTypes.DEFAULT_TYP
         sender_account = await get_bank_account_by_user(session, user.id)
         if not sender_account:
             await update.message.reply_text(
-                "❌ يجب أن يكون لديك حساب بنكي للتحويل.\n"
-                "افتح حساباً بـ /openbank"
+                "❌ You must have a bank account to transfer.\n"
+                "Open one with /openbank"
             )
             return ConversationHandler.END
 
         receiver_account = await get_bank_account_by_number(session, account_number)
         if not receiver_account:
-            await update.message.reply_text("❌ رقم الحساب غير موجود. تحقق من الرقم وأعد المحاولة.")
+            await update.message.reply_text("❌ Account number not found. Check the number and try again.")
             return TRANSFER_WAIT_ACCOUNT
 
         if receiver_account.user_id == user.id:
-            await update.message.reply_text("❌ لا تستطيع التحويل لنفسك!")
+            await update.message.reply_text("❌ You cannot transfer to yourself!")
             return ConversationHandler.END
 
         sender_wallet = await deduct_coins(session, user.id, amount)
         if sender_wallet is None:
             sender_wallet = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"رصيدك الحالي: <b>{fmt_coins(sender_wallet.coins)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Current balance: <b>{fmt_coins(sender_wallet.coins)} coins</b>",
                 parse_mode="HTML",
             )
             return ConversationHandler.END
@@ -275,11 +275,11 @@ async def cmd_transfer_account(update: Update, context: ContextTypes.DEFAULT_TYP
         receiver_name = fmt_user(receiver_account.owner_first_name, receiver_account.owner_username)
 
     await update.message.reply_text(
-        f"✅ <b>تم التحويل بنجاح!</b>\n\n"
-        f"📤 حوّلت: <b>{fmt_coins(amount)} عملة</b>\n"
-        f"👤 إلى: {receiver_name}\n"
-        f"💳 رقم الحساب: <code>{account_number}</code>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(sender_wallet.coins)} عملة</b>",
+        f"✅ <b>Transfer successful!</b>\n\n"
+        f"📤 Transferred: <b>{fmt_coins(amount)} coins</b>\n"
+        f"👤 To: {receiver_name}\n"
+        f"💳 Account Number: <code>{account_number}</code>\n"
+        f"💰 Your balance: <b>{fmt_coins(sender_wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
     return ConversationHandler.END
@@ -287,12 +287,12 @@ async def cmd_transfer_account(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def cmd_transfer_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.pop("transfer_amount", None)
-    await update.message.reply_text("❌ تم إلغاء التحويل.")
+    await update.message.reply_text("❌ Transfer cancelled.")
     return ConversationHandler.END
 
 
 # ---------------------------------------------------------------------------
-# /balance  — فلوسي
+# /balance  — My Balance
 # ---------------------------------------------------------------------------
 
 async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -301,22 +301,22 @@ async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         wallet = await get_wallet(session, user.id)
 
     await update.message.reply_text(
-        f"💰 <b>رصيدك يا {user.first_name}</b>\n\n"
-        f"<b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"💰 <b>Your balance, {user.first_name}</b>\n\n"
+        f"<b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /checkbal  — فلوس (رد أو منشن)
+# /checkbal  — Check Balance (reply or mention)
 # ---------------------------------------------------------------------------
 
 async def cmd_checkbal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     target_id = await _resolve_target(update)
     if not target_id:
         await update.message.reply_text(
-            "ℹ️ استخدم الأمر بالرد على رسالة شخص لمعرفة رصيده.\n"
-            "مثال: ردّ على رسالته واكتب /checkbal"
+            "ℹ️ Use this command by replying to someone's message to see their balance.\n"
+            "Example: Reply to their message and type /checkbal"
         )
         return
 
@@ -326,14 +326,14 @@ async def cmd_checkbal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     name = fmt_user(target_user.first_name, target_user.username)
     await update.message.reply_text(
-        f"💰 <b>رصيد {name}</b>\n\n"
-        f"<b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"💰 <b>Balance of {name}</b>\n\n"
+        f"<b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /salary  — راتب (كل 20 دقيقة)
+# /salary  — Salary (every 20 min)
 # ---------------------------------------------------------------------------
 
 async def cmd_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -345,7 +345,7 @@ async def cmd_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         wait = _remaining(stats.last_salary_at, SALARY_COOLDOWN)
         if wait:
             await update.message.reply_text(
-                f"⏳ راتبك القادم بعد <b>{wait}</b>",
+                f"⏳ Next salary in <b>{wait}</b>",
                 parse_mode="HTML",
             )
             return
@@ -353,15 +353,15 @@ async def cmd_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         stats.last_salary_at = _utcnow()
 
     await update.message.reply_text(
-        f"💵 <b>استلمت راتبك!</b>\n\n"
-        f"<b>+{fmt_coins(SALARY_AMOUNT)} عملة</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"💵 <b>Salary received!</b>\n\n"
+        f"<b>+{fmt_coins(SALARY_AMOUNT)} coins</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /bonus  — بخشيش (كل 10 دقائق)
+# /bonus  — Bonus (every 10 min)
 # ---------------------------------------------------------------------------
 
 async def cmd_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -373,7 +373,7 @@ async def cmd_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         wait = _remaining(stats.last_bonus_at, BONUS_COOLDOWN)
         if wait:
             await update.message.reply_text(
-                f"⏳ البخشيش القادم بعد <b>{wait}</b>",
+                f"⏳ Next bonus in <b>{wait}</b>",
                 parse_mode="HTML",
             )
             return
@@ -381,15 +381,15 @@ async def cmd_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         stats.last_bonus_at = _utcnow()
 
     await update.message.reply_text(
-        f"🎁 <b>بخشيشك!</b>\n\n"
-        f"<b>+{fmt_coins(BONUS_AMOUNT)} عملة</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"🎁 <b>Your bonus!</b>\n\n"
+        f"<b>+{fmt_coins(BONUS_AMOUNT)} coins</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /steal  — سرقة (كل 10 دقائق، رد على شخص)
+# /steal  — Steal (every 10 min, reply to person)
 # ---------------------------------------------------------------------------
 
 async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -398,7 +398,7 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not target_id:
         await update.message.reply_text(
-            "🦹 ردّ على رسالة شخص واكتب /steal لسرقة فلوسه!"
+            "🦹 Reply to someone's message and type /steal to rob them!"
         )
         return
 
@@ -407,7 +407,7 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
     if target_id == user.id:
-        await update.message.reply_text("😂 ما تقدر تسرق من نفسك!")
+        await update.message.reply_text("😂 You cannot steal from yourself!")
         return
 
     target_user = update.effective_message.reply_to_message.from_user
@@ -417,7 +417,7 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         wait = _remaining(stats.last_steal_at, STEAL_COOLDOWN)
         if wait:
             await update.message.reply_text(
-                f"⏳ ما تقدر تسرق الآن، انتظر <b>{wait}</b>",
+                f"⏳ You cannot steal now, wait <b>{wait}</b>",
                 parse_mode="HTML",
             )
             return
@@ -425,7 +425,7 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         victim_wallet = await get_wallet(session, target_id)
         if victim_wallet.coins < 10:
             await update.message.reply_text(
-                f"😅 {target_user.first_name} ما عنده شي يستاهل تسرقه!"
+                f"😅 {target_user.first_name} has nothing worth stealing!"
             )
             stats.last_steal_at = _utcnow()
             return
@@ -433,7 +433,7 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         steal_pct = random.randint(STEAL_MIN_PCT, STEAL_MAX_PCT)
         steal_amount = max(1, int(victim_wallet.coins * steal_pct / 100))
 
-        # 70% فرصة نجاح
+        # 70% success chance
         success = random.random() < 0.70
 
         if success:
@@ -447,13 +447,13 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             stats.last_steal_at = _utcnow()
             victim_name = fmt_user(target_user.first_name, target_user.username)
             await update.message.reply_text(
-                f"🦹 <b>سرقة ناجحة!</b>\n\n"
-                f"سرقت <b>{fmt_coins(steal_amount)} عملة</b> من {victim_name}\n"
-                f"💰 رصيدك الآن: <b>{fmt_coins(thief_wallet.coins)} عملة</b>",
+                f"🦹 <b>Successful robbery!</b>\n\n"
+                f"You stole <b>{fmt_coins(steal_amount)} coins</b> from {victim_name}\n"
+                f"💰 Balance: <b>{fmt_coins(thief_wallet.coins)} coins</b>",
                 parse_mode="HTML",
             )
         else:
-            # فشل — يدفع المسروق منه نسبة كغرامة من السارق
+            # Failure — pay a fine to the victim
             fine = max(1, steal_amount // 2)
             thief_wallet = await deduct_coins(session, user.id, fine)
             stats.last_steal_at = _utcnow()
@@ -461,16 +461,16 @@ async def cmd_steal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 thief_wallet = await get_wallet(session, user.id)
             victim_name = fmt_user(target_user.first_name, target_user.username)
             await update.message.reply_text(
-                f"🚔 <b>انكشفت!</b>\n\n"
-                f"حاولت تسرق {victim_name} بس ما نجحت!\n"
-                f"دفعت غرامة <b>{fmt_coins(fine)} عملة</b>\n"
-                f"💰 رصيدك الآن: <b>{fmt_coins(thief_wallet.coins)} عملة</b>",
+                f"🚔 <b>Caught!</b>\n\n"
+                f"You tried to rob {victim_name} but failed!\n"
+                f"Paid a fine of <b>{fmt_coins(fine)} coins</b>\n"
+                f"💰 Balance: <b>{fmt_coins(thief_wallet.coins)} coins</b>",
                 parse_mode="HTML",
             )
 
 
 # ---------------------------------------------------------------------------
-# /thieftop  — توب الحراميه
+# /thieftop  — Thief Top
 # ---------------------------------------------------------------------------
 
 async def cmd_thieftop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -484,7 +484,7 @@ async def cmd_thieftop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )).all()
 
     if not rows:
-        await update.message.reply_text("🦹 لا يوجد لصوص بعد!")
+        await update.message.reply_text("🦹 No thieves yet!")
         return
 
     medals = ["🥇", "🥈", "🥉"]
@@ -494,15 +494,15 @@ async def cmd_thieftop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         name = fmt_user(fname, uname)
         lines.append(
             f"{medal} {name}\n"
-            f"   سرق: <b>{fmt_coins(stolen)}</b> 💰 | عمليات: {count}"
+            f"   Stole: <b>{fmt_coins(stolen)}</b> 💰 | Jobs: {count}"
         )
 
-    text = "🦹 <b>توب الحراميه</b>\n\n" + "\n".join(lines)
+    text = "🦹 <b>Thief Top</b>\n\n" + "\n".join(lines)
     await update.message.reply_text(text, parse_mode="HTML")
 
 
 # ---------------------------------------------------------------------------
-# /invest  — استثمار (ربح مضمون 0-9%)
+# /invest  — Invest (guaranteed profit 0-9%)
 # ---------------------------------------------------------------------------
 
 async def cmd_invest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -510,10 +510,10 @@ async def cmd_invest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     args = context.args
     if not args or not args[0].isdigit() or int(args[0]) <= 0:
         await update.message.reply_text(
-            "📈 <b>استثمار</b>\n\n"
-            "الاستخدام: /invest <المبلغ>\n"
-            "مثال: /invest 1000\n\n"
-            "نسبة الربح المضمونة: 0% - 9%",
+            "📈 <b>Invest</b>\n\n"
+            "Usage: /invest <amount>\n"
+            "Example: /invest 1000\n\n"
+            "Guaranteed profit rate: 0% - 9%",
             parse_mode="HTML",
         )
         return
@@ -526,8 +526,8 @@ async def cmd_invest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if wallet is None:
             current = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"رصيدك: <b>{fmt_coins(current.coins)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Balance: <b>{fmt_coins(current.coins)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -537,17 +537,17 @@ async def cmd_invest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         wallet = await add_coins(session, user.id, total_return)
 
     await update.message.reply_text(
-        f"📈 <b>نتيجة الاستثمار</b>\n\n"
-        f"💵 استثمرت: <b>{fmt_coins(amount)} عملة</b>\n"
-        f"📊 نسبة الربح: <b>{profit_pct}%</b>\n"
-        f"✅ ربحت: <b>{fmt_coins(profit)} عملة</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"📈 <b>Investment Result</b>\n\n"
+        f"💵 Invested: <b>{fmt_coins(amount)} coins</b>\n"
+        f"📊 Profit rate: <b>{profit_pct}%</b>\n"
+        f"✅ Earned: <b>{fmt_coins(profit)} coins</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /luck  — حظ (50% تضاعف / 50% تخسر الكل)
+# /luck  — Luck (50% double / 50% lose all)
 # ---------------------------------------------------------------------------
 
 async def cmd_luck(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -555,10 +555,10 @@ async def cmd_luck(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args
     if not args or not args[0].isdigit() or int(args[0]) <= 0:
         await update.message.reply_text(
-            "🎲 <b>حظ</b>\n\n"
-            "الاستخدام: /luck <المبلغ>\n"
-            "مثال: /luck 500\n\n"
-            "50% تضاعف مبلغك — 50% تخسره",
+            "🎲 <b>Luck</b>\n\n"
+            "Usage: /luck <amount>\n"
+            "Example: /luck 500\n\n"
+            "50% double your amount — 50% lose it",
             parse_mode="HTML",
         )
         return
@@ -571,8 +571,8 @@ async def cmd_luck(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if wallet is None:
             current = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"رصيدك: <b>{fmt_coins(current.coins)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Balance: <b>{fmt_coins(current.coins)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -581,23 +581,23 @@ async def cmd_luck(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if won:
             wallet = await add_coins(session, user.id, amount * 2)
             result_text = (
-                f"🎉 <b>فزت!</b>\n\n"
-                f"ضاعفت <b>{fmt_coins(amount)} عملة</b>\n"
-                f"ربحت: <b>+{fmt_coins(amount)} عملة</b>\n"
-                f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>"
+                f"🎉 <b>You won!</b>\n\n"
+                f"You doubled <b>{fmt_coins(amount)} coins</b>\n"
+                f"Profit: <b>+{fmt_coins(amount)} coins</b>\n"
+                f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>"
             )
         else:
             result_text = (
-                f"💔 <b>خسرت!</b>\n\n"
-                f"خسرت <b>{fmt_coins(amount)} عملة</b>\n"
-                f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>"
+                f"💔 <b>You lost!</b>\n\n"
+                f"You lost <b>{fmt_coins(amount)} coins</b>\n"
+                f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>"
             )
 
     await update.message.reply_text(result_text, parse_mode="HTML")
 
 
 # ---------------------------------------------------------------------------
-# /trade  — مضاربة (-90% إلى +90%)
+# /trade  — Trade (-90% to +90%)
 # ---------------------------------------------------------------------------
 
 async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -605,10 +605,10 @@ async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args
     if not args or not args[0].isdigit() or int(args[0]) <= 0:
         await update.message.reply_text(
-            "📉📈 <b>مضاربة</b>\n\n"
-            "الاستخدام: /trade <المبلغ>\n"
-            "مثال: /trade 1000\n\n"
-            "النتيجة عشوائية من -90% إلى +90%",
+            "📉📈 <b>Trade</b>\n\n"
+            "Usage: /trade <amount>\n"
+            "Example: /trade 1000\n\n"
+            "Result is random from -90% to +90%",
             parse_mode="HTML",
         )
         return
@@ -621,8 +621,8 @@ async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if wallet is None:
             current = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"رصيدك: <b>{fmt_coins(current.coins)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Balance: <b>{fmt_coins(current.coins)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -633,30 +633,30 @@ async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if actual_return > 0:
             wallet = await add_coins(session, user.id, actual_return)
-        # إذا كانت النتيجة صفراً أو سالبة — خسر كل شيء (لا نضيف شيئاً)
+        # If result is zero or negative — lose everything (add nothing)
 
     if pct > 0:
-        direction = f"📈 ربحت +{pct}%"
-        change_text = f"+{fmt_coins(change)} عملة"
+        direction = f"📈 You won +{pct}%"
+        change_text = f"+{fmt_coins(change)} coins"
     elif pct < 0:
-        direction = f"📉 خسرت {pct}%"
-        change_text = f"-{fmt_coins(abs(change))} عملة"
+        direction = f"📉 You lost {pct}%"
+        change_text = f"-{fmt_coins(abs(change))} coins"
     else:
-        direction = "😐 لا ربح ولا خسارة"
-        change_text = "0 عملة"
+        direction = "😐 No profit, no loss"
+        change_text = "0 coins"
 
     await update.message.reply_text(
-        f"📊 <b>نتيجة المضاربة</b>\n\n"
-        f"💵 ضاربت بـ: <b>{fmt_coins(amount)} عملة</b>\n"
+        f"📊 <b>Trade Result</b>\n\n"
+        f"💵 Amount Traded: <b>{fmt_coins(amount)} coins</b>\n"
         f"{direction}\n"
-        f"التغيير: <b>{change_text}</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"Change: <b>{change_text}</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /top  — توب الفلوس + توب الحراميه
+# /top  — Wealth Top + Thief Top
 # ---------------------------------------------------------------------------
 
 async def cmd_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -688,12 +688,12 @@ async def cmd_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         name = fmt_user(fname, uname)
         thief_lines.append(f"{medals[i]} {name} — <b>{fmt_coins(stolen)}</b> 💰")
 
-    rich_section  = "\n".join(rich_lines)  if rich_lines  else "لا يوجد بيانات بعد"
-    thief_section = "\n".join(thief_lines) if thief_lines else "لا يوجد لصوص بعد"
+    rich_section  = "\n".join(rich_lines)  if rich_lines  else "No data yet"
+    thief_section = "\n".join(thief_lines) if thief_lines else "No thieves yet"
 
     await update.message.reply_text(
-        f"✯ <b>توب الفلوس</b>\n{rich_section}\n\n"
-        f"🦹 <b>توب الحراميه</b>\n{thief_section}",
+        f"✯ <b>Wealth Top</b>\n{rich_section}\n\n"
+        f"🦹 <b>Thief Top</b>\n{thief_section}",
         parse_mode="HTML",
     )
 

@@ -1,16 +1,16 @@
 """
-plugins/warns.py — نظام التحذيرات مع إجراءات تلقائية عند بلوغ الحد.
+plugins/warns.py — Warnings system with automatic actions at limit.
 
-الأوامر:
-  /warn   [مستخدم] [سبب]    — إصدار تحذير.
-  /warns  [مستخدم]          — عرض التحذيرات.
-  /resetwarn [مستخدم]       — مسح جميع التحذيرات.
-  /warnlimit <n>            — ضبط الحد (← استخدم /settings).
-  /strongwarn on|off        — تبديل الإجراء عند الحد (← استخدم /settings).
-  /addwarn <كلمة> <رد>      — فلتر تحذير تلقائي.
-  /nowarn <كلمة>            — حذف فلتر التحذير.
+Commands:
+  /warn   [user] [reason]    — Issue a warning.
+  /warns  [user]          — View warnings.
+  /resetwarn [user]       — Clear all warnings.
+  /warnlimit <n>            — Set limit (← use /settings).
+  /strongwarn on|off        — Toggle action at limit (← use /settings).
+  /addwarn <word> <reply>      — Automatic warning filter.
+  /nowarn <word>            — Delete warning filter.
 
-التحقق التلقائي: MessageHandler يفحص كل رسالة ضد قائمة الكلمات المفلترة.
+Automatic check: MessageHandler checks every message against the filtered words list.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ WARN_FILTERS: Dict[int, List[str]] = {}
 
 
 # ---------------------------------------------------------------------------
-# مساعدات
+# Helpers
 # ---------------------------------------------------------------------------
 
 async def _mention_from_id(
@@ -84,7 +84,7 @@ def _keyword_regex(keyword: str) -> re.Pattern[str]:
 
 
 # ---------------------------------------------------------------------------
-# منطق التحذير الأساسي
+# Core Warn Logic
 # ---------------------------------------------------------------------------
 
 async def _do_warn(
@@ -115,70 +115,70 @@ async def _do_warn(
     warn_action: WarnAction = cfg.warn_action if cfg else WarnAction.KICK
 
     mention = await _mention_from_id(context, user_id, update)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     if warn_count >= warn_limit:
-        action_text = "تم تحذيره"
+        action_text = "warned"
         try:
             if warn_action == WarnAction.BAN:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-                action_text = "محظور نهائياً"
+                action_text = "Permanently Banned"
             elif warn_action == WarnAction.KICK:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                 await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
-                action_text = "مطرود"
+                action_text = "Kicked"
             elif warn_action == WarnAction.MUTE:
                 from telegram import ChatPermissions
                 await context.bot.restrict_chat_member(
                     chat_id=chat_id, user_id=user_id,
                     permissions=ChatPermissions(can_send_messages=False),
                 )
-                action_text = "مكتوم"
+                action_text = "Muted"
         except BadRequest as exc:
-            logger.warning("إجراء التحذير فشل للمستخدم %s في %s: %s", user_id, chat_id, exc.message)
+            logger.warning("Warn action failed for user %s in %s: %s", user_id, chat_id, exc.message)
 
         entries = await warns_repo.list_entries(chat_id, user_id)
         reasons = [e.reason for e in entries if e.reason]
         reasons_block = (
-            "\n\n<b>📋 الأسباب:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(reasons))
+            "\n\n<b>📋 Reasons:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(reasons))
             if reasons else ""
         )
         await message.reply_html(
-            f"🚨 <b>بلغ الحد!</b>\n"
+            f"🚨 <b>Limit reached!</b>\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 <b>المستخدم:</b> {mention}\n"
-            f"📊 <b>التحذيرات:</b> [▓▓▓▓▓▓▓▓] {warn_limit}/{warn_limit}\n"
-            f"⚡ <b>الإجراء:</b> {action_text}"
+            f"👤 <b>User:</b> {mention}\n"
+            f"📊 <b>Warnings:</b> [▓▓▓▓▓▓▓▓] {warn_limit}/{warn_limit}\n"
+            f"⚡ <b>Action:</b> {action_text}"
             f"{reasons_block}"
         )
         return (
             f"<b>{html.escape(chat.title or '')}:</b>\n"
             f"#WARN_ACTION\n"
-            f"<b>بواسطة:</b> {warner_name}\n"
-            f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)\n"
-            f"<b>العدد:</b> {warn_count}/{warn_limit}"
+            f"<b>By:</b> {warner_name}\n"
+            f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
+            f"<b>Count:</b> {warn_count}/{warn_limit}"
             f"{reason_line}"
         )
 
     filled = round((warn_count / warn_limit) * 8)
     bar = "▓" * filled + "░" * (8 - filled)
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("❌ إلغاء تحذير", callback_data=f"rmwarn_{chat_id}_{user_id}")
+        InlineKeyboardButton("❌ Remove Warning", callback_data=f"rmwarn_{chat_id}_{user_id}")
     ]])
     await message.reply_html(
-        f"⚠️ <b>تحذير</b>\n"
+        f"⚠️ <b>Warning</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"📊 <b>التحذيرات:</b> [{bar}] {warn_count}/{warn_limit}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warnings:</b> [{bar}] {warn_count}/{warn_limit}"
         f"{reason_line}",
         reply_markup=keyboard,
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#WARN\n"
-        f"<b>بواسطة:</b> {warner_name}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)\n"
-        f"<b>العدد:</b> {warn_count}/{warn_limit}"
+        f"<b>By:</b> {warner_name}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
+        f"<b>Count:</b> {warn_count}/{warn_limit}"
         f"{reason_line}"
     )
 
@@ -197,7 +197,7 @@ async def warn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[s
 
     admin = update.effective_user
     chat_id = update.effective_chat.id
-    warner_name = admin.mention_html() if admin else "تلقائي"
+    warner_name = admin.mention_html() if admin else "Automatic"
 
     if not reason:
         async with get_session() as session:
@@ -238,7 +238,7 @@ async def warn_reason_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     warner_name = pending["warner"] if pending else update.effective_user.mention_html()
 
     if reason_ref == "custom":
-        await query.edit_message_text("أرسل سبب التحذير رداً على هذه الرسالة.")
+        await query.edit_message_text("Send the warning reason as a reply to this message.")
         return
 
     reason_text = ""
@@ -278,14 +278,14 @@ async def warns(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     bar = "▓" * filled + "░" * (8 - filled)
     reasons = [e.reason for e in entries if e.reason]
     reasons_block = (
-        "\n\n<b>📋 الأسباب:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(reasons))
+        "\n\n<b>📋 Reasons:</b>\n" + "\n".join(f"  {i+1}. {html.escape(r)}" for i, r in enumerate(reasons))
         if reasons else ""
     )
     await message.reply_html(
-        f"📊 <b>سجل التحذيرات</b>\n"
+        f"📊 <b>Warning Record</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"📊 <b>التحذيرات:</b> [{bar}] {count}/{warn_limit}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warnings:</b> [{bar}] {count}/{warn_limit}"
         f"{reasons_block}"
     )
 
@@ -307,15 +307,15 @@ async def reset_warns(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await warns_repo.clear_all(chat.id, user_id)
     mention = await _mention_from_id(context, user_id, update)
     await message.reply_html(
-        f"🗑 <b>تم مسح التحذيرات</b>\n"
+        f"🗑 <b>Warnings cleared</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"📊 <b>التحذيرات:</b> [░░░░░░░░] 0/{warn_limit}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"📊 <b>Warnings:</b> [░░░░░░░░] 0/{warn_limit}"
     )
 
 
 # ---------------------------------------------------------------------------
-# إصدار تحذير بدون Update (تُستخدم من plugins أخرى)
+# Issue Warning without Update (used by other plugins)
 # ---------------------------------------------------------------------------
 
 async def issue_warn(
@@ -323,12 +323,12 @@ async def issue_warn(
     chat_id: int,
     user_id: int,
     reason: str,
-    issuer_name: str = "تلقائي",
+    issuer_name: str = "Automatic",
 ) -> str:
     try:
         member_info = await context.bot.get_chat_member(chat_id, user_id)
         if member_info.status in ("administrator", "creator"):
-            return "⛔ لا يمكن تحذير المشرفين."
+            return "⛔ Cannot warn admins."
     except Exception:
         pass
 
@@ -337,31 +337,31 @@ async def issue_warn(
     warn_action = cfg.warn_action if cfg else WarnAction.KICK
 
     mention = f'<a href="tg://user?id={user_id}">{user_id}</a>'
-    reason_text = f" — السبب: {reason}" if reason else ""
+    reason_text = f" — Reason: {reason}" if reason else ""
 
     if warn_count >= warn_limit:
-        action_text = "تم تحذيره"
+        action_text = "warned"
         try:
             if warn_action == WarnAction.BAN:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-                action_text = "محظور نهائياً"
+                action_text = "Permanently Banned"
             elif warn_action == WarnAction.KICK:
                 await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                 await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
-                action_text = "مطرود"
+                action_text = "Kicked"
             elif warn_action == WarnAction.MUTE:
                 from telegram import ChatPermissions
                 await context.bot.restrict_chat_member(
                     chat_id=chat_id, user_id=user_id,
                     permissions=ChatPermissions(can_send_messages=False),
                 )
-                action_text = "مكتوم"
+                action_text = "Muted"
         except Exception:
             pass
         try:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"⚠️ {mention} — {action_text} بعد بلوغ الحد ({warn_limit} تحذيرات).{reason_text}",
+                text=f"⚠️ {mention} — {action_text} after reaching the limit ({warn_limit} warnings).{reason_text}",
                 parse_mode="HTML",
             )
         except Exception:
@@ -371,33 +371,33 @@ async def issue_warn(
     try:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"⚠️ تم تحذير {mention} بواسطة {issuer_name}. ({warn_count}/{warn_limit}){reason_text}",
+            text=f"⚠️ {mention} has been warned by {issuer_name}. ({warn_count}/{warn_limit}){reason_text}",
             parse_mode="HTML",
         )
     except Exception:
         pass
-    return f"تحذير {warn_count}/{warn_limit} صدر."
+    return f"Warning {warn_count}/{warn_limit} issued."
 
 
 # ---------------------------------------------------------------------------
-# /warnlimit — يُوجَّه نحو /settings
+# /warnlimit — Redirect to /settings
 # ---------------------------------------------------------------------------
 
 @user_admin
 async def warn_limit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_html(
-        "⚙️ لضبط حد التحذيرات، استخدم /settings ← <b>التحذيرات</b>."
+        "⚙️ To set the warning limit, use /settings ← <b>Warnings</b>."
     )
 
 
 # ---------------------------------------------------------------------------
-# /strongwarn — يُوجَّه نحو /settings
+# /strongwarn — Redirect to /settings
 # ---------------------------------------------------------------------------
 
 @user_admin
 async def strong_warn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_html(
-        "⚙️ لضبط إجراء التحذيرات، استخدم /settings ← <b>التحذيرات</b>."
+        "⚙️ To set the warning action, use /settings ← <b>Warnings</b>."
     )
 
 
@@ -412,7 +412,7 @@ async def add_warn_filter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     raw = (message.text or "").split(None, 1)[-1].strip()
 
     if not raw or len(raw.split(None, 1)) < 2:
-        await message.reply_text("الاستخدام: /addwarn <كلمة> <نص الرد>")
+        await message.reply_text("Usage: /addwarn <word> <reply text>")
         return
 
     parts = raw.split(None, 1)
@@ -438,7 +438,7 @@ async def add_warn_filter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         triggers.append(keyword)
         WARN_FILTERS[chat.id] = sorted(triggers, key=lambda k: (-len(k), k))
 
-    await message.reply_text(f"✅ فلتر التحذير أُضيف: <code>{keyword}</code>", parse_mode=ParseMode.HTML)
+    await message.reply_text(f"✅ Warning filter added: <code>{keyword}</code>", parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +452,7 @@ async def remove_warn_filter(update: Update, context: ContextTypes.DEFAULT_TYPE)
     raw = (message.text or "").split(None, 1)[-1].strip()
 
     if not raw:
-        await message.reply_text("أرسل الكلمة المراد حذفها.")
+        await message.reply_text("Send the word to be deleted.")
         return
 
     keyword = raw.lower()
@@ -462,14 +462,14 @@ async def remove_warn_filter(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         row = result.scalar_one_or_none()
         if not row:
-            await message.reply_text(f"لا يوجد فلتر للكلمة <code>{keyword}</code>.", parse_mode=ParseMode.HTML)
+            await message.reply_text(f"No filter found for <code>{keyword}</code>.", parse_mode=ParseMode.HTML)
             return
         await session.delete(row)
 
     if chat.id in WARN_FILTERS and keyword in WARN_FILTERS[chat.id]:
         WARN_FILTERS[chat.id].remove(keyword)
 
-    await message.reply_text(f"✅ حُذف فلتر التحذير: <code>{keyword}</code>", parse_mode=ParseMode.HTML)
+    await message.reply_text(f"✅ Warning filter deleted: <code>{keyword}</code>", parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -487,10 +487,10 @@ async def warn_filters_list(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         rows = result.scalars().all()
 
     if not rows:
-        await message.reply_text("لا توجد فلاتر تحذير مضبوطة لهذه المجموعة.")
+        await message.reply_text("No warning filters set for this group.")
         return
 
-    lines = ["<b>📋 فلاتر التحذير:</b>"]
+    lines = ["<b>📋 Warning Filters:</b>"]
     for row in rows:
         preview = (row.reply_text[:40] + "…") if len(row.reply_text) > 40 else row.reply_text
         lines.append(f"• <code>{row.keyword}</code> ← {preview}")
@@ -499,7 +499,7 @@ async def warn_filters_list(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 # ---------------------------------------------------------------------------
-# زر إلغاء التحذير
+# Remove Warn Callback
 # ---------------------------------------------------------------------------
 
 @user_admin_no_reply
@@ -511,25 +511,25 @@ async def remove_warn_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         _, chat_id_str, user_id_str = (query.data or "").split("_", 2)
         chat_id, user_id = int(chat_id_str), int(user_id_str)
     except (ValueError, AttributeError):
-        await query.edit_message_text("بيانات غير صحيحة.")
+        await query.edit_message_text("Invalid data.")
         return
 
     removed = await warns_repo.remove_latest(chat_id, user_id)
     if not removed:
-        await query.edit_message_text("لا توجد تحذيرات للإزالة.")
+        await query.edit_message_text("No warnings to remove.")
         return
 
     new_count, _ = await warns_repo.count(chat_id, user_id)
     admin = update.effective_user
     await query.edit_message_text(
-        f"✅ تم إلغاء التحذير بواسطة {admin.mention_html() if admin else 'مشرف'}.\n"
-        f"<a href='tg://user?id={user_id}'>{user_id}</a> لديه الآن <b>{new_count}</b> تحذير.",
+        f"✅ Warning removed by {admin.mention_html() if admin else 'Admin'}.\n"
+        f"<a href='tg://user?id={user_id}'>{user_id}</a> now has <b>{new_count}</b> warnings.",
         parse_mode=ParseMode.HTML,
     )
 
 
 # ---------------------------------------------------------------------------
-# فحص تلقائي للرسائل
+# Auto Message Check
 # ---------------------------------------------------------------------------
 
 async def auto_warn_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -558,12 +558,12 @@ async def auto_warn_check(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 row = result.scalar_one_or_none()
             reply_text = row.reply_text if row else ""
-            await _do_warn(update, context, chat.id, user.id, "تلقائي", reply_text)
+            await _do_warn(update, context, chat.id, user.id, "Automatic", reply_text)
             break
 
 
 # ---------------------------------------------------------------------------
-# تسجيل الـ Plugin
+# Register Plugin
 # ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:

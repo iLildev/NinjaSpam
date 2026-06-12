@@ -195,10 +195,10 @@ async def _handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await message.reply_text(
                 f"🔒 <b>Strict Mode</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"👤 {mention} مرحباً بك!\n\n"
-                f"⏳ يمكنك <b>الكتابة فقط</b> لمدة <b>{dur_text}</b>\n"
-                f"🚫 الصور، الفيديوهات، الملصقات والوسائط محظورة مؤقتاً\n"
-                f"✅ بعد انتهاء المدة ترتفع القيود تلقائياً",
+                f"👤 Welcome {mention}!\n\n"
+                f"⏳ You can only <b>send text</b> for <b>{dur_text}</b>\n"
+                f"🚫 Photos, videos, stickers, and media are temporarily blocked\n"
+                f"✅ Restrictions will be lifted automatically after the period expires",
                 parse_mode=ParseMode.HTML,
             )
             logger.info(
@@ -227,10 +227,10 @@ async def cmd_strict(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             cfg.enabled = False
             await session.commit()
             await update.message.reply_text(
-                "🔓 <b>Strict Mode</b> — <b>مُعطَّل</b>\n"
+                "🔓 <b>Strict Mode</b> — <b>Disabled</b>\n"
                 "━━━━━━━━━━━━━━━\n"
-                "الأعضاء الجدد لن يُقيَّدوا بعد الآن.\n"
-                "⚠️ القيود الحالية لن تُرفع تلقائياً.",
+                "New members will no longer be restricted.\n"
+                "⚠️ Current restrictions will NOT be lifted automatically.",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -244,14 +244,14 @@ async def cmd_strict(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             )
             count: int = count_result.scalar_one()
 
-            state = "✅ <b>مُفعَّل</b>" if cfg.enabled else "❌ <b>مُعطَّل</b>"
+            state = "✅ <b>Enabled</b>" if cfg.enabled else "❌ <b>Disabled</b>"
             await update.message.reply_text(
-                f"🔒 <b>Strict Mode — الحالة</b>\n"
+                f"🔒 <b>Strict Mode — Status</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"الحالة: {state}\n"
-                f"⏳ المدة: <b>{cfg.duration_hours} ساعة</b>\n"
-                f"👥 الأعضاء المُقيَّدون حالياً: <b>{count}</b>\n\n"
-                f"<i>لتفعيل: /strict &lt;ساعات&gt; | لإيقاف: /strict off</i>",
+                f"Status: {state}\n"
+                f"⏳ Duration: <b>{cfg.duration_hours} hours</b>\n"
+                f"👥 Currently restricted members: <b>{count}</b>\n\n"
+                f"<i>To enable: /strict &lt;hours&gt; | To disable: /strict off</i>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -260,10 +260,10 @@ async def cmd_strict(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         arg = args[0]
         if not arg.isdigit():
             await update.message.reply_text(
-                "⚠️ الاستخدام:\n"
-                "<code>/strict &lt;ساعات&gt;</code> — تفعيل (1–168)\n"
-                "<code>/strict off</code> — تعطيل\n"
-                "<code>/strict status</code> — الحالة",
+                "⚠️ Usage:\n"
+                "<code>/strict &lt;hours&gt;</code> — enable (1–168)\n"
+                "<code>/strict off</code> — disable\n"
+                "<code>/strict status</code> — status",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -271,7 +271,7 @@ async def cmd_strict(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         hours = int(arg)
         if not (1 <= hours <= 168):
             await update.message.reply_text(
-                "❌ المدة يجب أن تكون بين <b>1</b> و<b>168</b> ساعة (7 أيام).",
+                "❌ Duration must be between <b>1</b> and <b>168</b> hours (7 days).",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -281,11 +281,11 @@ async def cmd_strict(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await session.commit()
 
     await update.message.reply_text(
-        f"🔒 <b>Strict Mode</b> — <b>مُفعَّل</b>\n"
+        f"🔒 <b>Strict Mode</b> — <b>Enabled</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"⏳ كل عضو جديد سيُقيَّد من الوسائط لمدة <b>{hours} ساعة</b>\n"
-        f"✍️ الكتابة مسموحة، الصور/الفيديو/الملصقات محظورة\n"
-        f"✅ القيود ترتفع تلقائياً بعد انتهاء المدة",
+        f"⏳ Every new member will be restricted from media for <b>{hours} hours</b>\n"
+        f"✍️ Writing is allowed, photos/videos/stickers are blocked\n"
+        f"✅ Restrictions lift automatically after the period ends",
         parse_mode=ParseMode.HTML,
     )
 

@@ -1,5 +1,5 @@
 """
-economy/helpers.py — دوال مساعدة مشتركة لنظام الاقتصاد.
+economy/helpers.py — Common helper functions for the economy system.
 """
 
 from __future__ import annotations
@@ -100,7 +100,7 @@ async def get_jail(session: AsyncSession, user_id: int) -> Optional[JailRecord]:
 
 
 async def is_jailed(session: AsyncSession, user_id: int) -> bool:
-    """أرجع True إذا كان المستخدم في السجن فعلياً الآن."""
+    """Return True if the user is currently in jail."""
     jail = await get_jail(session, user_id)
     if jail is None:
         return False
@@ -117,7 +117,7 @@ async def jail_user(
     duration_minutes: int = 60,
     bail: int = 300,
 ) -> JailRecord:
-    """ضع المستخدم في السجن — إذا كان موجوداً بالفعل فحدّث مدته."""
+    """Put the user in jail — if already there, update duration."""
     existing = await get_jail(session, user_id)
     if existing and existing.is_active:
         return existing
@@ -158,14 +158,14 @@ async def auto_jail_if_overdue(
     session: AsyncSession, user_id: int
 ) -> Optional[JailRecord]:
     """
-    إذا كان للمستخدم قرض متأخر السداد، ضعه في السجن تلقائياً.
-    يُستدعى قبل كل أمر كسب.
+    If the user has an overdue loan, put them in jail automatically.
+    Called before every earning command.
     """
     loan = await get_active_loan(session, user_id)
     if loan and loan.is_overdue:
         return await jail_user(
             session, user_id,
-            reason=f"تعثّر في سداد قرض بقيمة {loan.remaining:,} عملة",
+            reason=f"Failed to repay a loan of {loan.remaining:,} coins",
             duration_minutes=120,
             bail=300,
         )
@@ -178,17 +178,17 @@ async def auto_jail_if_overdue(
 
 async def check_jailed_and_reply(update: Update, session: AsyncSession, user_id: int) -> bool:
     """
-    تحقق من السجن وأرسل رسالة إذا كان مسجوناً.
-    يُرجع True إذا كان مسجوناً (يجب إيقاف المعالج).
+    Check jail status and send a message if jailed.
+    Returns True if jailed (handler should stop).
     """
     await auto_jail_if_overdue(session, user_id)
     if await is_jailed(session, user_id):
         jail = await get_jail(session, user_id)
         await update.message.reply_text(
-            f"🔒 <b>أنت في السجن!</b>\n\n"
-            f"السبب: {jail.reason}\n"
-            f"يُطلق سراحك بعد: <b>{jail.time_left_str}</b>\n\n"
-            f"أو ادفع كفالة <b>{jail.bail_amount:,} عملة</b> بـ /bail",
+            f"🔒 <b>You are in jail!</b>\n\n"
+            f"Reason: {jail.reason}\n"
+            f"Release in: <b>{jail.time_left_str}</b>\n\n"
+            f"Or pay bail <b>{jail.bail_amount:,} coins</b> with /bail",
             parse_mode="HTML",
         )
         return True

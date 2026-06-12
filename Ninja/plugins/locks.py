@@ -215,7 +215,11 @@ async def show_locks(
     def _icon(val: bool) -> str:
         return "🔒" if val else "🔓"
 
-    lines: List[str] = [f"<b>Lock Status — {chat.title}:</b>\n", "<b>Content Locks:</b>"]
+    lines: List[str] = [
+        f"<b>Lock Status — {chat.title}</b>\n"
+        f"━━━━━━━━━━━━━━━\n",
+        "<b>Content Locks:</b>"
+    ]
     for lt in LOCK_TYPES:
         val: bool = getattr(lock_settings, lt, False) if lock_settings else False
         lines.append(f"  {_icon(val)} {lt}")

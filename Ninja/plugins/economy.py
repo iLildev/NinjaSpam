@@ -1,10 +1,10 @@
 """
-plugins/economy.py — شيم رفيع يُحمّل نظام الاقتصاد من حزمة economy/.
+plugins/economy.py — High-level shim that loads the economy system from the economy/ package.
 
-جميع المنطق موجود في:
-  tgbot/economy/models.py   — نماذج قاعدة البيانات
-  tgbot/economy/helpers.py  — دوال مساعدة
-  tgbot/economy/plugin.py   — معالجات الأوامر
+All logic resides in:
+  tgbot/economy/models.py   — DB Models
+  tgbot/economy/helpers.py  — Helper functions
+  tgbot/economy/plugin.py   — Command handlers
 """
 
 from economy.plugin import register  # noqa: F401

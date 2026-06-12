@@ -1,15 +1,15 @@
 """
-economy/heist.py — السطو الجماعي على البنك.
+economy/heist.py — Group Bank Heist.
 
-الأوامر:
-  /rob     — ابدأ سطواً (في المجموعة، يحتاج حساباً بنكياً)
-  /joinrob — انضم للسطو (خلال 60 ثانية)
+Commands:
+  /rob     — Start a heist (in group, requires bank account)
+  /joinrob — Join a heist (within 60 seconds)
 
-الميكانيكية:
-  • المبادر يبدأ السطو، 60 ثانية للانضمام.
-  • لا يقل عن 2 مشاركين وإلا يُلغى.
-  • نجاح 65% (يرتفع مع عدد المشاركين) → كل واحد يحصل على 300-700 عملة.
-  • فشل 35% → كل المشاركين يذهبون للسجن ساعة كاملة.
+Mechanics:
+  • Initiator starts the heist, 60 seconds to join.
+  • At least 2 participants or it's cancelled.
+  • Success 65% (increases with participants) → each gets 300-700 coins.
+  • Failure 35% → all participants go to jail for one hour.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def _utcnow() -> datetime:
 
 
 # ---------------------------------------------------------------------------
-# Job: تنفيذ السطو بعد 60 ثانية
+# Job: execute the heist after 60 seconds
 # ---------------------------------------------------------------------------
 
 async def _execute_heist(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -73,12 +73,12 @@ async def _execute_heist(context: ContextTypes.DEFAULT_TYPE) -> None:
             heist.status = "cancelled"
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="❌ <b>السطو أُلغي!</b>\n\nما في كافٍ من المشاركين.",
+                text="❌ <b>Heist cancelled!</b>\n\nNot enough participants.",
                 parse_mode="HTML",
             )
             return
 
-        # زيادة احتمال النجاح مع المشاركين
+        # Increase success chance with participants
         base_chance = 0.65
         bonus       = min(0.15, (len(participants) - 2) * 0.05)
         success     = random.random() < (base_chance + bonus)
@@ -97,9 +97,9 @@ async def _execute_heist(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    f"🎉 <b>السطو نجح!</b>\n\n"
-                    f"المشاركون:\n{names_txt}\n\n"
-                    f"💰 كل واحد حصل على <b>{fmt_coins(loot)} عملة</b>!"
+                    f"🎉 <b>Heist successful!</b>\n\n"
+                    f"Participants:\n{names_txt}\n\n"
+                    f"💰 Everyone received <b>{fmt_coins(loot)} coins</b>!"
                 ),
                 parse_mode="HTML",
             )
@@ -109,7 +109,7 @@ async def _execute_heist(context: ContextTypes.DEFAULT_TYPE) -> None:
             for p in participants:
                 await jail_user(
                     session, p.user_id,
-                    reason="القبض عليك أثناء السطو على البنك!",
+                    reason="Caught while robbing the bank!",
                     duration_minutes=HEIST_JAIL_MINUTES,
                     bail=HEIST_BAIL,
                 )
@@ -119,17 +119,17 @@ async def _execute_heist(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    f"🚔 <b>السطو فشل!</b>\n\n"
-                    f"تم إلقاء القبض على:\n{names_txt}\n\n"
-                    f"🔒 الجميع في السجن لمدة ساعة!\n"
-                    f"الكفالة: <b>{fmt_coins(HEIST_BAIL)} عملة</b> — استخدم /bail"
+                    f"🚔 <b>Heist failed!</b>\n\n"
+                    f"The following were arrested:\n{names_txt}\n\n"
+                    f"🔒 Everyone is in jail for one hour!\n"
+                    f"Bail: <b>{fmt_coins(HEIST_BAIL)} coins</b> — use /bail"
                 ),
                 parse_mode="HTML",
             )
 
 
 # ---------------------------------------------------------------------------
-# /rob  — ابدأ السطو
+# /rob  — Start Heist
 # ---------------------------------------------------------------------------
 
 async def cmd_rob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -137,20 +137,20 @@ async def cmd_rob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
 
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل في المجموعات فقط!")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         bank = await get_bank_account_by_user(session, user.id)
         if not bank:
             await update.message.reply_text(
-                "❌ يجب أن يكون لديك حساب بنكي للمشاركة في السطو.\n"
-                "افتح حساباً بـ /openbank"
+                "❌ You must have a bank account to participate in a heist.\n"
+                "Open an account with /openbank"
             )
             return
 
         if await is_jailed(session, user.id):
-            await update.message.reply_text("🔒 أنت في السجن — ما تقدر تنظم سطواً!")
+            await update.message.reply_text("🔒 You are in jail — you cannot organize a heist!")
             return
 
         active_r = await session.execute(
@@ -161,7 +161,7 @@ async def cmd_rob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         if active_r.scalar_one_or_none():
             await update.message.reply_text(
-                "⚠️ يوجد سطو جارٍ بالفعل! انضم بـ /joinrob"
+                "⚠️ There is already a heist in progress! Join with /joinrob"
             )
             return
 
@@ -191,17 +191,17 @@ async def cmd_rob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     await update.message.reply_text(
-        f"🦹 <b>{user.first_name} يخطط لسطو على البنك!</b>\n\n"
-        f"انضم للسطو بـ /joinrob خلال <b>60 ثانية</b>!\n\n"
-        f"⚠️ تحتاج حساباً بنكياً — /openbank\n"
-        f"🎯 نجاح: كل واحد يحصل 300-700 عملة\n"
-        f"🚔 فشل: الجميع يروح السجن ساعة!",
+        f"🦹 <b>{user.first_name} is planning a bank heist!</b>\n\n"
+        f"Join the heist with /joinrob within <b>60 seconds</b>!\n\n"
+        f"⚠️ You need a bank account — /openbank\n"
+        f"🎯 Success: Everyone gets 300-700 coins\n"
+        f"🚔 Failure: Everyone goes to jail for an hour!",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# /joinrob  — انضم للسطو
+# /joinrob  — Join Heist
 # ---------------------------------------------------------------------------
 
 async def cmd_joinrob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -209,20 +209,20 @@ async def cmd_joinrob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     chat_id = update.effective_chat.id
 
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل في المجموعات فقط!")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         bank = await get_bank_account_by_user(session, user.id)
         if not bank:
             await update.message.reply_text(
-                "❌ يجب أن يكون لديك حساب بنكي للمشاركة.\n"
-                "افتح حساباً بـ /openbank"
+                "❌ You must have a bank account to participate.\n"
+                "Open an account with /openbank"
             )
             return
 
         if await is_jailed(session, user.id):
-            await update.message.reply_text("🔒 أنت في السجن — ما تقدر تشارك في السطو!")
+            await update.message.reply_text("🔒 You are in jail — you cannot join the heist!")
             return
 
         heist_r = await session.execute(
@@ -234,8 +234,8 @@ async def cmd_joinrob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         heist = heist_r.scalar_one_or_none()
         if not heist:
             await update.message.reply_text(
-                "❌ لا يوجد سطو جارٍ الآن.\n"
-                "ابدأ سطواً بـ /rob"
+                "❌ No heist in progress right now.\n"
+                "Start a heist with /rob"
             )
             return
 
@@ -246,7 +246,7 @@ async def cmd_joinrob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         )
         if existing_r.scalar_one_or_none():
-            await update.message.reply_text("✅ أنت بالفعل في فريق السطو!")
+            await update.message.reply_text("✅ You are already in the heist team!")
             return
 
         participant = HeistParticipant(
@@ -263,8 +263,8 @@ async def cmd_joinrob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         count = len(count_r.scalars().all()) + 1
 
     await update.message.reply_text(
-        f"✅ <b>{user.first_name} انضم للسطو!</b>\n"
-        f"👥 المشاركون الآن: <b>{count}</b>",
+        f"✅ <b>{user.first_name} joined the heist!</b>\n"
+        f"👥 Participants now: <b>{count}</b>",
         parse_mode="HTML",
     )
 

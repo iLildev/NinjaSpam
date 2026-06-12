@@ -462,6 +462,19 @@ class ChatFeatureSettings(Base):
     # General Group Settings                                              #
     # ------------------------------------------------------------------ #
 
+    chatbot_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Toggle for the AI chatbot auto-response subsystem.",
+    )
+    clean_blue_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Toggle for auto-deleting unknown bot command messages (bluetext).",
+    )
+
     welcome_message_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

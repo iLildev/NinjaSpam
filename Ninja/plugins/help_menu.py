@@ -425,8 +425,8 @@ async def start_cmd(
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """
-    رسالة ترحيب عند /start — تعريف بالبوت وأبرز مميزاته.
-    تعمل في المجموعات والخاص على حد سواء.
+    Welcome message for /start — introduction to the bot and its features.
+    Works in both groups and private chats.
     """
     message = update.effective_message
     user = update.effective_user
@@ -440,24 +440,24 @@ async def start_cmd(
 
     if chat_type == "private":
         text = (
-            f"🥷 <b>أهلاً {user.first_name}!</b>\n\n"
-            f"أنا <b>{bot_name}</b> — بوت إدارة مجموعات تيليجرام المتكامل.\n\n"
-            f"<b>🛡 الحماية</b>\n"
-            f"  مكافحة سبام · كابتشا · مكافحة الغارات · فلتر بايز الذكي\n\n"
-            f"<b>🚫 الإدارة</b>\n"
-            f"  بان · ميوت · إنذارات · فيدريشن · تنظيف\n\n"
-            f"<b>💰 الاقتصاد</b>\n"
-            f"  بنك وهمي · راتب · استثمار · سرقة · سطو جماعي · قروض\n\n"
-            f"<b>🎮 الألعاب</b>\n"
-            f"  نينجا · مزرعة · قلعة · مسابقات تخمين\n\n"
-            f"أضفني لمجموعتك ومنحني صلاحيات المشرف لأبدأ العمل!\n\n"
-            f"<i>اكتب /help لقائمة الأوامر الكاملة.</i>"
+            f"🥷 <b>Hello {user.first_name}!</b>\n\n"
+            f"I am <b>{bot_name}</b> — the ultimate Telegram group management bot.\n\n"
+            f"<b>🛡 Protection</b>\n"
+            f"  Anti-spam · CAPTCHA · Anti-raid · Smart Bayes Filter\n\n"
+            f"<b>🚫 Moderation</b>\n"
+            f"  Ban · Mute · Warnings · Federations · Cleaning\n\n"
+            f"<b>💰 Economy</b>\n"
+            f"  Virtual Bank · Salary · Investment · Heist · Group Robbery · Loans\n\n"
+            f"<b>🎮 Games</b>\n"
+            f"  Ninja · Farm · Castle · Guessing Quizzes\n\n"
+            f"Add me to your group and grant me admin permissions to get started!\n\n"
+            f"<i>Type /help for the full command list.</i>"
         )
     else:
         text = (
-            f"🥷 <b>مرحباً {user.first_name}!</b>\n\n"
-            f"أنا <b>{bot_name}</b> — بوت الإدارة المتكامل.\n"
-            f"اكتب /help لقائمة جميع الأوامر."
+            f"🥷 <b>Welcome {user.first_name}!</b>\n\n"
+            f"I am <b>{bot_name}</b> — your all-in-one management bot.\n"
+            f"Type /help for a list of all commands."
         )
 
     await message.reply_html(text)
@@ -465,7 +465,7 @@ async def start_cmd(
 
 async def register(application: Application) -> None:
     """Register /start, /help commands and navigation callbacks."""
-    # استبعاد deep-links مثل /start rules_... حتى تلتقطها plugins أخرى
+    # Exclude deep-links like /start rules_... so other plugins can catch them
     application.add_handler(
         CommandHandler("start", start_cmd, filters=~filters.Regex(r"rules_"))
     )

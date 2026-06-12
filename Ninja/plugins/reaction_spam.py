@@ -75,20 +75,20 @@ async def cmd_reactionspam(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             cfg.enabled = False
             await session.commit()
             await update.message.reply_text(
-                "😀 <b>Reaction Spam</b> — <b>مُعطَّل</b>",
+                "😀 <b>Reaction Spam</b> — <b>Disabled</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
 
         if not args or args[0].lower() == "status":
-            state = "✅ مُفعَّل" if cfg.enabled else "❌ مُعطَّل"
+            state = "✅ Enabled" if cfg.enabled else "❌ Disabled"
             await update.message.reply_text(
-                f"😀 <b>Reaction Spam — الحالة</b>\n"
+                f"😀 <b>Reaction Spam — Status</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"الحالة: {state}\n"
-                f"🔢 الحد: <b>{cfg.max_reactions}</b> تفاعل\n"
-                f"⏳ النافذة: <b>{cfg.window_minutes}</b> دقيقة\n\n"
-                f"<i>/reactionspam &lt;N&gt; [دقائق] — تفعيل</i>",
+                f"Status: {state}\n"
+                f"🔢 Limit: <b>{cfg.max_reactions}</b> reactions\n"
+                f"⏳ Window: <b>{cfg.window_minutes}</b> minutes\n\n"
+                f"<i>/reactionspam &lt;N&gt; [minutes] — enable</i>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -102,7 +102,7 @@ async def cmd_reactionspam(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         max_r = int(args[0])
         if max_r < 3:
-            await update.message.reply_text("❌ الحد يجب أن يكون ≥ 3.")
+            await update.message.reply_text("❌ Limit must be ≥ 3.")
             return
 
         window = int(args[1]) if len(args) > 1 and args[1].isdigit() else cfg.window_minutes
@@ -112,9 +112,9 @@ async def cmd_reactionspam(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await session.commit()
 
     await update.message.reply_text(
-        f"😀 <b>Reaction Spam</b> — <b>مُفعَّل</b>\n"
+        f"😀 <b>Reaction Spam</b> — <b>Enabled</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"🔢 الحد: <b>{max_r}</b> تفاعل في <b>{window}</b> دقيقة → حظر",
+        f"🔢 Limit: <b>{max_r}</b> reactions in <b>{window}</b> minutes → Ban",
         parse_mode=ParseMode.HTML,
     )
 
@@ -169,8 +169,8 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat.id,
                 f"😀🚫 <b>Reaction Spam!</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"{mention} محظور — أرسل <b>{len(dq)}</b> تفاعل في وقت قصير.\n"
-                f"<i>هذا سلوك بوتات السبام التي تضغط ردود فعل لجذب الانتباه لـ bio.</i>",
+                f"{mention} banned — sent <b>{len(dq)}</b> reactions in a short time.\n"
+                f"<i>This is typical behavior of spam bots that react to posts to draw attention to their bio.</i>",
                 parse_mode=ParseMode.HTML,
             )
             _reaction_log[key].clear()

@@ -1,22 +1,22 @@
 """
-core/helpers/fuzzy.py — محرك المطابقة الضبابية للنص العربي.
+core/helpers/fuzzy.py — Fuzzy matching engine for Arabic text.
 
-يوفّر:
-  normalize(text)            — تطبيع النص (إزالة التشكيل، توحيد الحروف).
-  similarity(a, b)           — نسبة التشابه بين نصَّين (0.0 – 1.0).
-  levenshtein(a, b)          — مسافة Levenshtein (عدد التعديلات).
-  is_close(a, b, threshold)  — هل النصان متقاربان بما يكفي للقبول؟
-  best_match(text, pool)     — أفضل تطابق من قائمة كلمات.
+Provides:
+  normalize(text)            — Normalize text (remove diacritics, unify characters).
+  similarity(a, b)           — Similarity ratio between two strings (0.0 – 1.0).
+  levenshtein(a, b)          — Levenshtein distance (number of edits).
+  is_close(a, b, threshold)  — Are the two strings close enough to accept?
+  best_match(text, pool)     — Best match from a list of words.
 
-منهجية المطابقة ذات المستويين:
-  1. SequenceMatcher ≥ 90%  → تطابق مباشر (مريح للكلمات الطويلة).
-  2. Levenshtein = 1        → تطابق بخطأ واحد فقط (مريح للكلمات القصيرة).
-     الشرط: النص المُدخَل لا يقل عن 3 أحرف لتجنّب التطابقات العشوائية.
+Two-level matching methodology:
+  1. SequenceMatcher ≥ 90%  → Direct match (comfortable for long words).
+  2. Levenshtein = 1        → Match with exactly one error (comfortable for short words).
+     Condition: Input text must be at least 3 characters to avoid random matches.
 
-التطبيع:
-  - يُزيل التشكيل (حركات) والمدّ.
-  - يوحّد أشكال الهمزة (أ/إ/آ/ء → ا).
-  - يوحّد التاء المربوطة (ة → ه) والألف المقصورة (ى → ي).
+Normalization:
+  - Removes diacritics (harakat) and tatweel.
+  - Unifies Hamza shapes (أ/إ/آ/ء → ا).
+  - Unifies Taa Marbuta (ة → ه) and Alif Maqsura (ى → ي).
 """
 
 from __future__ import annotations
@@ -26,11 +26,11 @@ from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Tuple
 
 _DIACRITICS = re.compile(
-    r"[\u0610-\u061A"   # علامات قرآنية
-    r"\u064B-\u065F"    # تشكيل (فتحة، ضمة، كسرة...)
-    r"\u0670"           # ألف فوقية
-    r"\u06D6-\u06DC"    # علامات تلاوة
-    r"\u06DF-\u06E4"    # علامات تلاوة
+    r"[\u0610-\u061A"   # Quranic marks
+    r"\u064B-\u065F"    # Diacritics (fatha, damma, kasra...)
+    r"\u0670"           # Superscript Alef
+    r"\u06D6-\u06DC"    # Tajweed marks
+    r"\u06DF-\u06E4"    # Tajweed marks
     r"\u06E7\u06E8"
     r"\u06EA-\u06ED]"
 )
@@ -41,15 +41,15 @@ _WHITESPACE = re.compile(r"\s+")
 
 def normalize(text: str) -> str:
     """
-    طبّع النص العربي لمقارنة مرنة وغير حساسة للأخطاء الإملائية الشائعة.
+    Normalize Arabic text for flexible and spelling-error-insensitive comparison.
 
-    خطوات التطبيع:
-      1. إزالة التشكيل والحركات.
-      2. توحيد همزات الألف (أ/إ/آ/ء) → ا.
-      3. توحيد التاء المربوطة (ة) → ه.
-      4. توحيد الألف المقصورة (ى) → ي.
-      5. ضغط المسافات وإزالة الحواف.
-      6. التحويل للأحرف الصغيرة (للنصوص اللاتينية).
+    Normalization steps:
+      1. Remove diacritics and marks.
+      2. Unify Alif Hamzas (أ/إ/آ/ء) → ا.
+      3. Unify Taa Marbuta (ة) → ه.
+      4. Unify Alif Maqsura (ى) → ي.
+      5. Compress whitespace and strip edges.
+      6. Convert to lowercase (for Latin text).
     """
     text = _DIACRITICS.sub("", text)
     text = _HAMZA.sub("ا", text)
@@ -59,16 +59,16 @@ def normalize(text: str) -> str:
 
 
 def similarity(a: str, b: str) -> float:
-    """أرجع نسبة التشابه (0.0 – 1.0) بين نصَّين بعد تطبيعهما."""
+    """Return similarity ratio (0.0 – 1.0) between two strings after normalization."""
     return SequenceMatcher(None, normalize(a), normalize(b)).ratio()
 
 
 def levenshtein(a: str, b: str) -> int:
     """
-    أرجع مسافة Levenshtein (الحد الأدنى من الإدراجات/الحذوفات/الاستبدالات)
-    بين نصَّين. يعمل على النص الخام (قبل التطبيع أو بعده).
+    Return Levenshtein distance (minimum insertions/deletions/substitutions)
+    between two strings. Operates on raw text (before or after normalization).
 
-    التعقيد: O(len(a) × len(b)) — مقبول تماماً للكلمات القصيرة.
+    Complexity: O(len(a) × len(b)) — perfectly acceptable for short words.
     """
     if a == b:
         return 0
@@ -82,9 +82,9 @@ def levenshtein(a: str, b: str) -> int:
         curr = [prev[0] + 1]
         for j, cb in enumerate(b):
             curr.append(min(
-                prev[j + 1] + 1,   # حذف
-                curr[j] + 1,        # إدراج
-                prev[j] + (ca != cb),  # استبدال أو مطابقة
+                prev[j + 1] + 1,   # deletion
+                curr[j] + 1,        # insertion
+                prev[j] + (ca != cb),  # substitution or match
             ))
         prev = curr
     return prev[-1]
@@ -92,12 +92,12 @@ def levenshtein(a: str, b: str) -> int:
 
 def is_close(a: str, b: str, threshold: float = 0.90) -> bool:
     """
-    هل النصان متقاربان بما يكفي للقبول؟
+    Are the two strings close enough to accept?
 
-    المعيار المزدوج:
-      • SequenceMatcher ratio ≥ threshold  (يناسب الكلمات الطويلة).
-      • أو Levenshtein distance = 1 مع نص مدخَل لا يقل عن 3 أحرف
-        (يضبط الأخطاء المفردة في الكلمات القصيرة).
+    Double criterion:
+      • SequenceMatcher ratio ≥ threshold  (suits long words).
+      • Or Levenshtein distance = 1 with input text at least 3 characters
+        (catches single errors in short words).
     """
     na, nb = normalize(a), normalize(b)
     if SequenceMatcher(None, na, nb).ratio() >= threshold:
@@ -113,10 +113,10 @@ def best_match(
     threshold: float = 0.90,
 ) -> Optional[Tuple[str, float]]:
     """
-    قارن النص ضد قائمة كلمات وأرجع (أفضل_كلمة، النسبة) إن اجتاز المعيار.
+    Compare text against a list of words and return (best_word, ratio) if it passes the criterion.
 
-    يستخدم is_close() (SequenceMatcher + Levenshtein) لكل مرشّح.
-    يُرجع النسبة من SequenceMatcher للعرض، حتى لو نجح الفحص عبر Levenshtein.
+    Uses is_close() (SequenceMatcher + Levenshtein) for each candidate.
+    Returns the ratio from SequenceMatcher for display, even if it passed via Levenshtein.
     """
     norm_text = normalize(text)
     best_key: Optional[str] = None
@@ -130,7 +130,7 @@ def best_match(
             or (len(norm_text) >= 3 and levenshtein(norm_text, norm_cand) == 1)
         )
         if close and ratio > best_ratio:
-            best_ratio = max(ratio, threshold)  # لا تعرض نسبة أقل من العتبة
+            best_ratio = max(ratio, threshold)  # do not show ratio below threshold
             best_key = candidate
 
     if best_key is not None:
@@ -143,9 +143,9 @@ def build_lookup(
     keyword_field: str = "keywords",
 ) -> Dict[str, int]:
     """
-    ابنِ قاموس بحث سريع: {normalized_keyword → فهرس entry في القائمة}.
+    Build a fast lookup dictionary: {normalized_keyword → index of entry in list}.
 
-    يُستخدم لتسريع المطابقة من O(n*k) إلى استعلام مباشر بعد التطبيع.
+    Used to speed up matching from O(n*k) to direct lookup after normalization.
     """
     lookup: Dict[str, int] = {}
     for idx, entry in enumerate(entries):

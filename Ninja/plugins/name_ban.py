@@ -68,9 +68,9 @@ async def cmd_addnameban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     raw = (message.text or "").split(None, 1)
     if len(raw) < 2 or not raw[1].strip():
         await message.reply_text(
-            "⚠️ الاستخدام:\n"
-            "<code>/addnameban كلمة</code> — نص عادي\n"
-            "<code>/addnameban r/crypto.*/</code> — Regex",
+            "⚠️ Usage:\n"
+            "<code>/addnameban word</code> — Plain text\n"
+            "<code>/addnameban r/regex.*/</code> — Regex",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -81,7 +81,7 @@ async def cmd_addnameban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         try:
             re.compile(pattern)
         except re.error as e:
-            await message.reply_text(f"❌ Regex غير صحيح: <code>{e}</code>", parse_mode=ParseMode.HTML)
+            await message.reply_text(f"❌ Invalid Regex: <code>{e}</code>", parse_mode=ParseMode.HTML)
             return
 
     async with get_session() as session:
@@ -96,18 +96,18 @@ async def cmd_addnameban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
         )
         if existing.scalar_one_or_none():
-            await message.reply_text("ℹ️ هذا النمط موجود مسبقاً.")
+            await message.reply_text("ℹ️ This pattern already exists.")
             return
 
         session.add(NameBanPattern(chat_id=chat.id, pattern=pattern, is_regex=is_regex))
         await session.commit()
 
-    kind = "Regex" if is_regex else "نص"
+    kind = "Regex" if is_regex else "Text"
     await message.reply_text(
-        f"✅ <b>Name Ban مضاف</b>\n"
+        f"✅ <b>Name Ban Added</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"📝 النوع: <b>{kind}</b>\n"
-        f"🔍 النمط: <code>{pattern}</code>",
+        f"📝 Type: <b>{kind}</b>\n"
+        f"🔍 Pattern: <code>{pattern}</code>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -122,7 +122,7 @@ async def cmd_remnameban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message = update.effective_message
     raw = (message.text or "").split(None, 1)
     if len(raw) < 2 or not raw[1].strip():
-        await message.reply_text("⚠️ مرر النمط المراد حذفه.")
+        await message.reply_text("⚠️ Provide the pattern to remove.")
         return
 
     pattern, _ = _parse_input(raw[1])
@@ -136,13 +136,13 @@ async def cmd_remnameban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         row = result.scalar_one_or_none()
         if not row:
-            await message.reply_text("❌ النمط غير موجود.")
+            await message.reply_text("❌ Pattern not found.")
             return
         await session.delete(row)
         await session.commit()
 
     await message.reply_text(
-        f"🗑 <b>Name Ban محذوف</b>: <code>{pattern}</code>",
+        f"🗑 <b>Name Ban Removed</b>: <code>{pattern}</code>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -163,7 +163,7 @@ async def cmd_namebans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         rows = result.scalars().all()
 
     if not rows:
-        await update.message.reply_text("📋 لا توجد أنماط name-ban في هذه المجموعة.")
+        await update.message.reply_text("📋 No name-ban patterns in this group.")
         return
 
     lines = []
@@ -226,7 +226,7 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if banned:
             await message.reply_text(
                 f"🚫 <b>Auto-Ban</b>: <a href='tg://user?id={user.id}'>{full_name}</a>\n"
-                f"السبب: الاسم يطابق نمطاً محظوراً.",
+                f"Reason: Name matches a banned pattern.",
                 parse_mode=ParseMode.HTML,
             )
 

@@ -33,6 +33,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from database.engine import Base  # noqa: E402 — must come after sys.path fix
 import database.models          # noqa: F401 — registers Core models on Base.metadata
 import database.models_extra    # noqa: F401 — registers Extended models on Base.metadata
+import database.ninja_models     # noqa: F401
+import database.game_models      # noqa: F401
+import database.farm_models      # noqa: F401
+import database.connect_models   # noqa: F401
+import database.payment_models   # noqa: F401
+import economy.models            # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Alembic config
@@ -67,7 +73,7 @@ def _get_url() -> str:
     if raw.startswith("postgresql://"):
         raw = raw.replace("postgresql://", "postgresql+asyncpg://", 1)
     # strip SSL params asyncpg rejects
-    for param in ("?sslmode=require", "&sslmode=require", "sslmode=require"):
+    for param in ("?sslmode=require", "&sslmode=require", "sslmode=require", "?sslmode=disable", "&sslmode=disable", "sslmode=disable"):
         raw = raw.replace(param, "")
     return raw
 

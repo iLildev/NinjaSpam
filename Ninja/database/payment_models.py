@@ -41,20 +41,20 @@ class PaymentMethod(str, enum.Enum):
     PAYPAL   = "paypal"
 
     @property
-    def arabic_name(self) -> str:
+    def english_name(self) -> str:
         return {
-            PaymentMethod.ALKARIMI: "الكريمي 💳",
-            PaymentMethod.ALRAJHI:  "الراجحي 🏦",
+            PaymentMethod.ALKARIMI: "Al-Kuraimi 💳",
+            PaymentMethod.ALRAJHI:  "Al-Rajhi 🏦",
             PaymentMethod.PAYPAL:   "PayPal 🌐",
         }[self]
 
     @property
     def input_hint(self) -> str:
-        """نص المطالبة بالإدخال — وهمي للمتعة فقط."""
+        """Input prompt text — mock for fun only."""
         return {
-            PaymentMethod.ALKARIMI: "🎮 اكتب اسمك الوهمي في الكريمي (مثال: نينجا_الكريمي):",
-            PaymentMethod.ALRAJHI:  "🎮 اكتب اسمك الوهمي في الراجحي (مثال: الحاكم_الذهبي):",
-            PaymentMethod.PAYPAL:   "🎮 اكتب معرّفك الوهمي في PayPal (مثال: ninja@game.com):",
+            PaymentMethod.ALKARIMI: "🎮 Type your fake name in Al-Kuraimi (e.g., Ninja_Kuraimi):",
+            PaymentMethod.ALRAJHI:  "🎮 Type your fake name in Al-Rajhi (e.g., Golden_Ruler):",
+            PaymentMethod.PAYPAL:   "🎮 Type your fake ID in PayPal (e.g., ninja@game.com):",
         }[self]
 
 

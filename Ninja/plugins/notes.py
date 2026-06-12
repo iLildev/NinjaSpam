@@ -460,11 +460,15 @@ async def list_notes(
         names: List[str] = [row[0] for row in result.all()]
 
     if not names:
-        await message.reply_text("No notes are saved in this group.")
+        await message.reply_text("📋 No notes are saved in this group.")
         return
 
     body: str = "\n".join(f"• <code>#{n}</code>" for n in names)
-    full: str = f"<b>Notes in {chat.title}:</b>\n{body}"
+    full: str = (
+        f"<b>Notes in {chat.title}</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"{body}"
+    )
 
     if len(full) > 4096:
         full = full[:4090] + "\n…"

@@ -1,1 +1,1 @@
-# quiz package — لعبة التخمين
+# quiz package — guessing game

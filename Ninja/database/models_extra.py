@@ -1268,6 +1268,38 @@ class UserAFK(Base):
 
 
 # ---------------------------------------------------------------------------
+# Global Ignore (Owner-level silent ignore)
+# ---------------------------------------------------------------------------
+
+class GlobalIgnore(Base):
+    """
+    Users globally ignored by the bot owner.
+    Messages from these users are discarded silently by the middleware.
+    """
+
+    __tablename__ = "global_ignores"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        primary_key=True,
+        comment="Telegram user_id to ignore globally.",
+    )
+    reason: Mapped[Optional[str]] = mapped_column(
+        String(256),
+        nullable=True,
+        comment="Reason for ignoring the user.",
+    )
+    ignored_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+    )
+
+    def __repr__(self) -> str:
+        return f"<GlobalIgnore user_id={self.user_id}>"
+
+
+# ---------------------------------------------------------------------------
 # Clean Service Settings
 # ---------------------------------------------------------------------------
 

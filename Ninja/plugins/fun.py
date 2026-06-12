@@ -16,7 +16,7 @@ from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from core.helpers.extraction import extract_user
-from plugins import fun_strings
+from core import fun_data as fun_strings
 
 
 # ---------------------------------------------------------------------------

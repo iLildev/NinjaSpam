@@ -1,12 +1,12 @@
 """
-plugins/muting.py — الكتم المؤقت والدائم وإلغاؤه.
+plugins/muting.py — Temporary and permanent muting/unmuting.
 
-الأوامر:
-  /mute  [مستخدم] [سبب]        — كتم دائم.
-  /tmute [مستخدم] <مدة> [سبب]  — كتم مؤقت (10m / 2h / 3d).
-  /unmute [مستخدم]              — رفع الكتم.
+Commands:
+  /mute  [user] [reason]        — Permanent mute.
+  /tmute [user] <time> [reason]  — Temporary mute (e.g. 10m / 2h / 3d).
+  /unmute [user]              — Lift mute.
 
-جميع الإجراءات تُسجَّل في قناة السجلات عبر @loggable.
+All actions are logged to the log channel via @loggable.
 """
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[s
         await message.reply_text(t("mute_admin"))
         return None
     if user_id == context.bot.id:
-        await message.reply_text("🙃 لا.")
+        await message.reply_text("🙃 No.")
         return None
     if await _is_muted(chat, user_id):
         await message.reply_text(t("mute_already"))
@@ -127,26 +127,26 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[s
         )
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل الكتم: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Mute failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     mention = await _mention(user_id, update, context)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_html(
-        f"🔇 <b>تم الكتم</b>\n"
+        f"🔇 <b>User Muted</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#MUTE\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
         f"{reason_line}"
     )
 
@@ -163,7 +163,7 @@ async def temp_mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optio
 
     if not user_id:
         await message.reply_text(
-            "⚠️ حدّد المستخدم والمدة:\n<code>/tmute @username 2h [سبب]</code>",
+            "⚠️ Specify a user and duration:\n<code>/tmute @username 2h [reason]</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -172,7 +172,7 @@ async def temp_mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optio
         return None
     if not args_text:
         await message.reply_text(
-            "⚠️ أضف المدة بعد اسم المستخدم:\n<code>/tmute @username 2h [سبب]</code>",
+            "⚠️ Add the duration after the username:\n<code>/tmute @username 2h [reason]</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -184,8 +184,8 @@ async def temp_mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optio
 
     if until is None:
         await message.reply_text(
-            f"⚠️ مدة غير صحيحة <code>{html.escape(time_str)}</code>. "
-            f"استخدم: <code>10m</code>، <code>2h</code>، أو <code>3d</code>.",
+            f"⚠️ Invalid duration <code>{html.escape(time_str)}</code>. "
+            f"Use: <code>10m</code>, <code>2h</code>, or <code>3d</code>.",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -197,28 +197,28 @@ async def temp_mute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optio
         )
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل الكتم المؤقت: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Temporary mute failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     mention = await _mention(user_id, update, context)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_html(
-        f"⏱ <b>كتم مؤقت</b>\n"
+        f"⏱ <b>Temporary Mute</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"⏳ <b>المدة:</b> <code>{html.escape(time_str)}</code>\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"⏳ <b>Duration:</b> <code>{html.escape(time_str)}</code>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#TEMP_MUTE\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)\n"
-        f"<b>المدة:</b> {html.escape(time_str)}"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
+        f"<b>Duration:</b> {html.escape(time_str)}"
         f"{reason_line}"
     )
 
@@ -241,13 +241,13 @@ async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional
         member: ChatMember = await chat.get_member(user_id)
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ لم أجد المستخدم: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ User not found: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     if member.status in (ChatMember.LEFT, ChatMember.BANNED):
-        await message.reply_text("ℹ️ المستخدم ليس في المجموعة.")
+        await message.reply_text("ℹ️ User is not in the group.")
         return None
     if await _is_fully_unmuted(chat, user_id):
         await message.reply_text(t("unmute_already"))
@@ -259,23 +259,23 @@ async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional
         )
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل رفع الكتم: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Unmute failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     mention = await _mention(user_id, update, context)
     await message.reply_html(
-        f"🔊 <b>رُفع الكتم</b>\n"
+        f"🔊 <b>Mute Lifted</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#UNMUTE\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
     )
 
 

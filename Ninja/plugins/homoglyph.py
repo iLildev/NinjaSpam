@@ -125,8 +125,8 @@ async def cmd_homoglyph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             cfg.enabled = True
             await session.commit()
             await update.message.reply_text(
-                f"🔡 <b>Homoglyph Detection</b> — <b>مُفعَّل</b>\n"
-                f"الإجراء: <b>{cfg.action}</b>",
+                f"🔡 <b>Homoglyph Detection</b> — <b>Enabled</b>\n"
+                f"Action: <b>{cfg.action}</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -135,7 +135,7 @@ async def cmd_homoglyph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             cfg.enabled = False
             await session.commit()
             await update.message.reply_text(
-                "🔡 <b>Homoglyph Detection</b> — <b>مُعطَّل</b>",
+                "🔡 <b>Homoglyph Detection</b> — <b>Disabled</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -143,23 +143,23 @@ async def cmd_homoglyph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if args and args[0].lower() == "action" and len(args) > 1:
             act = args[1].lower()
             if act not in ("delete", "warn", "ban"):
-                await update.message.reply_text("❌ الإجراءات: delete | warn | ban")
+                await update.message.reply_text("❌ Actions: delete | warn | ban")
                 return
             cfg.action = act
             await session.commit()
             await update.message.reply_text(
-                f"✅ الإجراء الجديد: <b>{act}</b>", parse_mode=ParseMode.HTML
+                f"✅ New action: <b>{act}</b>", parse_mode=ParseMode.HTML
             )
             return
 
-        state = "✅ مُفعَّل" if cfg.enabled else "❌ مُعطَّل"
+        state = "✅ Enabled" if cfg.enabled else "❌ Disabled"
         await update.message.reply_text(
-            f"🔡 <b>Homoglyph Detection — الحالة</b>\n"
+            f"🔡 <b>Homoglyph Detection — Status</b>\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"الحالة: {state}\n"
-            f"⚡ الإجراء: <b>{cfg.action}</b>\n\n"
-            f"<i>يكتشف الكلمات التي تخلط بين الحروف الروسية (سيريلية) والإنجليزية (لاتينية)\n"
-            f"مثال: с+o+m = 'сom' تبدو 'com' لكنها مختلفة</i>",
+            f"Status: {state}\n"
+            f"⚡ Action: <b>{cfg.action}</b>\n\n"
+            f"<i>Detects words that mix Cyrillic and Latin characters.\n"
+            f"Example: с+o+m = 'сom' looks like 'com' but it's different.</i>",
             parse_mode=ParseMode.HTML,
         )
 
@@ -207,7 +207,7 @@ async def check_homoglyph(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
             await context.bot.send_message(
                 chat.id,
-                f"🔡 {mention} محظور — رسالة تحتوي على حروف مخلوطة (هجوم homoglyph).",
+                f"🔡 {mention} banned — message contains mixed characters (homoglyph attack).",
                 parse_mode=ParseMode.HTML,
             )
         except (BadRequest, TelegramError) as e:
@@ -216,14 +216,14 @@ async def check_homoglyph(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif action == "warn":
         await context.bot.send_message(
             chat.id,
-            f"⚠️ تحذير لـ {mention}: رسالة مشبوهة (حروف مخلوطة سيريلي+لاتيني).",
+            f"⚠️ Warning for {mention}: suspicious message (mixed Cyrillic+Latin characters).",
             parse_mode=ParseMode.HTML,
         )
 
     else:
         await context.bot.send_message(
             chat.id,
-            f"🔡 رسالة {mention} محذوفة — تحتوي حروف مخلوطة (تحايل على الفلاتر).",
+            f"🔡 {mention}'s message deleted — contains mixed characters (filter bypass attempt).",
             parse_mode=ParseMode.HTML,
         )
 

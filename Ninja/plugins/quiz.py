@@ -1,5 +1,5 @@
 """
-plugins/quiz.py — شيم يُحمّل لعبة التخمين من حزمة quiz/.
+plugins/quiz.py — Plugin loader for the guessing game from quiz/ package.
 """
 
 from quiz.plugin import register  # noqa: F401

@@ -205,11 +205,12 @@ async def _activate_night(
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"🌙 <b>Night Mode Active</b>\n\n"
+                f"🌙 <b>Night Mode Active</b>\n"
+                f"━━━━━━━━━━━━━━━\n"
                 f"The group is now restricted until "
                 f"<b>{_format_time(s.end_hour, s.end_minute)}</b>"
-                f"{tz_line}.\n"
-                f"Messaging will resume automatically in the morning."
+                f"{tz_line}.\n\n"
+                f"<i>Messaging will resume automatically in the morning.</i>"
             ),
             parse_mode=ParseMode.HTML,
         )

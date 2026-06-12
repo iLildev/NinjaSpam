@@ -1,17 +1,17 @@
 """
-quiz/plugin.py — لعبة التخمين.
+quiz/plugin.py — Guessing Game.
 
-الأوامر:
-  /quiz      — سؤال عشوائي من كل الفئات
-  /animequiz — سؤال من فئة الأنمي فقط
-  /carquiz   — سؤال من فئة السيارات فقط
-  /endquiz   — إنهاء السؤال الحالي (المشرفون فقط)
+Commands:
+  /quiz      — Random question from all categories
+  /animequiz — Question from Anime category only
+  /carquiz   — Question from Cars category only
+  /endquiz   — End the current question (Admins only)
 
-الآلية:
-  • سؤال واحد نشط في كل مجموعة في نفس الوقت.
-  • المستخدم الأول الذي يكتب الإجابة الصحيحة يفوز بـ 500 عملة في البنك.
-  • إن لم يكن للفائز حساب بنكي تُضاف العملات لمحفظته العامة.
-  • ينتهي السؤال تلقائياً بعد 45 ثانية إذا لم يجب أحد.
+Mechanism:
+  • Only one active question per group at a time.
+  • The first user to type the correct answer wins 500 coins.
+  • If the winner doesn't have a bank account, coins are added to their general wallet.
+  • The question ends automatically after 45 seconds if no one answers.
 """
 
 from __future__ import annotations
@@ -38,47 +38,47 @@ logger = logging.getLogger(__name__)
 QUIZ_REWARD  = 500
 QUIZ_TIMEOUT = 45
 
-ANIME_QUESTIONS = [q for q in QUESTIONS if q["category"].startswith("أنمي")]
-CAR_QUESTIONS   = [q for q in QUESTIONS if q["category"].startswith("سيارات")]
+ANIME_QUESTIONS = [q for q in QUESTIONS if q["category"].startswith("Anime")]
+CAR_QUESTIONS   = [q for q in QUESTIONS if q["category"].startswith("Cars")]
 
 _ACTIVE_KEY = "quiz_active"
 
 
 # ---------------------------------------------------------------------------
-# تطبيع النص العربي والإنجليزي للمقارنة
+# Normalize Arabic and English text for comparison
 # ---------------------------------------------------------------------------
 
 def _normalise(text: str) -> str:
     """
-    توحيد النص لمقارنة الإجابات:
-    - حذف التشكيل (الحركات)
-    - توحيد صور الألف (أ إ آ ٱ → ا)
-    - توحيد الياء (ى → ي)
-    - توحيد التاء المربوطة (ة → ه)
-    - حذف التطويل (ـ)
-    - تحويل الإنجليزي لصغير
-    - ضغط المسافات
+    Normalize text to compare answers:
+    - Remove diacritics
+    - Unify Alef (أ إ آ ٱ → ا)
+    - Unify Yaa (ى → ي)
+    - Unify Taa Marbuta (ة → ه)
+    - Remove Tatweel (ـ)
+    - Convert English to lowercase
+    - Compress spaces
     """
     text = text.strip()
-    # حذف التشكيل
+    # Remove diacritics
     text = re.sub(r'[\u064B-\u065F\u0670]', '', text)
-    # توحيد الألف
+    # Unify Alef
     text = re.sub(r'[أإآٱ]', 'ا', text)
-    # توحيد الياء
+    # Unify Yaa
     text = text.replace('ى', 'ي')
-    # توحيد التاء المربوطة
+    # Unify Taa Marbuta
     text = text.replace('ة', 'ه')
-    # حذف التطويل
+    # Remove Tatweel
     text = text.replace('ـ', '')
-    # إنجليزي → صغير
+    # English → lowercase
     text = text.lower()
-    # ضغط المسافات
+    # Compress spaces
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
 
 def _is_correct(user_answer: str, answers: list[str]) -> bool:
-    """تحقق من صحة الإجابة مع تطبيع مرن."""
+    """Check if answer is correct with flexible normalization."""
     normed = _normalise(user_answer)
     if not normed:
         return False
@@ -89,7 +89,7 @@ def _is_correct(user_answer: str, answers: list[str]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# بدء السؤال
+# Start Question
 # ---------------------------------------------------------------------------
 
 async def _start_quiz(
@@ -100,17 +100,17 @@ async def _start_quiz(
     chat_id = update.effective_chat.id
 
     if update.effective_chat.type == "private":
-        await update.message.reply_text("🎮 اللعبة تعمل في المجموعات فقط!")
+        await update.message.reply_text("🎮 The game only works in groups!")
         return
 
     if context.chat_data.get(_ACTIVE_KEY):
         await update.message.reply_text(
-            "⚠️ يوجد سؤال نشط بالفعل! أجب عليه أو انتظر انتهاء الوقت."
+            "⚠️ There is already an active question! Answer it or wait for the time to expire."
         )
         return
 
     if not pool:
-        await update.message.reply_text("⚠️ لا توجد أسئلة في هذه الفئة.")
+        await update.message.reply_text("⚠️ No questions found in this category.")
         return
 
     question: Question = random.choice(pool)
@@ -125,10 +125,10 @@ async def _start_quiz(
     )
 
     await update.message.reply_text(
-        f"🎮 <b>سؤال — {question['category']}</b>\n\n"
+        f"🎮 <b>Question — {question['category']}</b>\n\n"
         f"<i>{question['clue']}</i>\n\n"
-        f"⏱️ لديك <b>{QUIZ_TIMEOUT} ثانية</b> للإجابة!\n"
-        f"🏆 الفائز يحصل على <b>{QUIZ_REWARD:,} عملة</b>",
+        f"⏱️ You have <b>{QUIZ_TIMEOUT} seconds</b> to answer!\n"
+        f"🏆 Winner gets <b>{QUIZ_REWARD:,} coins</b>",
         parse_mode="HTML",
     )
 
@@ -145,16 +145,16 @@ async def _timeout_quiz(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    f"⏰ <b>انتهى الوقت!</b>\n\n"
-                    f"الإجابة الصحيحة كانت: <b>{correct}</b>\n"
-                    f"تلميح: {question['hint']}"
+                    f"⏰ <b>Time's up!</b>\n\n"
+                    f"The correct answer was: <b>{correct}</b>\n"
+                    f"Hint: {question['hint']}"
                 ),
                 parse_mode="HTML",
             )
 
 
 # ---------------------------------------------------------------------------
-# الأوامر
+# Commands
 # ---------------------------------------------------------------------------
 
 async def cmd_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -175,12 +175,12 @@ async def cmd_endquiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     member = await chat.get_member(user.id)
 
     if member.status not in ("administrator", "creator"):
-        await update.message.reply_text("❌ هذا الأمر للمشرفين فقط.")
+        await update.message.reply_text("❌ Admins only.")
         return
 
     question: Optional[Question] = context.chat_data.pop(_ACTIVE_KEY, None)
     if not question:
-        await update.message.reply_text("✅ لا يوجد سؤال نشط حالياً.")
+        await update.message.reply_text("✅ There is no active question.")
         return
 
     jobs = context.job_queue.get_jobs_by_name(f"quiz_timeout_{chat.id}")
@@ -188,15 +188,15 @@ async def cmd_endquiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         job.schedule_removal()
 
     await update.message.reply_text(
-        f"🛑 <b>انتهى السؤال!</b>\n\n"
-        f"الإجابة كانت: <b>{question['answers'][0]}</b>\n"
-        f"تلميح: {question['hint']}",
+        f"🛑 <b>Question ended!</b>\n\n"
+        f"The answer was: <b>{question['answers'][0]}</b>\n"
+        f"Hint: {question['hint']}",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# معالج الإجابات
+# Answer Handler
 # ---------------------------------------------------------------------------
 
 async def _check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -214,35 +214,35 @@ async def _check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not _is_correct(text, question["answers"]):
         return
 
-    # إجابة صحيحة!
+    # Correct answer!
     context.chat_data.pop(_ACTIVE_KEY, None)
 
     user = update.effective_user
     chat_id = update.effective_chat.id
 
-    # إلغاء مؤقت المهلة
+    # Cancel timeout job
     jobs = context.job_queue.get_jobs_by_name(f"quiz_timeout_{chat_id}")
     for job in jobs:
         job.schedule_removal()
 
-    # منح المكافأة — تُضاف لـ Wallet (المحفظة المشتركة لكل الألعاب والاقتصاد)
+    # Grant reward
     async with get_session() as session:
         from core.game_wallet import add_coins
         wallet = await add_coins(session, user.id, QUIZ_REWARD)
         new_balance = wallet.coins
-        reward_msg = f"💰 رصيدك الآن: <b>{new_balance:,} عملة</b>"
+        reward_msg = f"💰 Balance: <b>{new_balance:,} coins</b>"
 
     await update.message.reply_text(
-        f"🎉 <b>{user.first_name} أجاب صح!</b>\n\n"
-        f"✅ الإجابة: <b>{question['answers'][0]}</b>\n"
-        f"🏆 ربح <b>{QUIZ_REWARD:,} عملة</b>!\n"
+        f"🎉 <b>{user.first_name} got it right!</b>\n\n"
+        f"✅ Answer: <b>{question['answers'][0]}</b>\n"
+        f"🏆 Won <b>{QUIZ_REWARD:,} coins</b>!\n"
         f"{reward_msg}",
         parse_mode="HTML",
     )
 
 
 # ---------------------------------------------------------------------------
-# تسجيل الإضافة
+# Register Plugin
 # ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:

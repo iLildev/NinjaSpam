@@ -1,16 +1,16 @@
 """
-plugins/wallet.py — نظام المال العام لجميع الألعاب.
+plugins/wallet.py — Global currency system for all games.
 
-العملات (coins) مستقلة تماماً عن ذهب القلعة (CastleResources.gold).
+Coins are completely independent of Castle resources (CastleResources.gold).
 
-الأوامر:
-  /wallet         — عرض رصيد المحفظة
-  /daily          — مكافأة يومية (10 عملات كل 24 ساعة)
+Commands:
+  /wallet         — View wallet balance
+  /daily          — Daily reward (10 coins every 24 hours)
 
-واجهة برمجية داخلية للإضافات الأخرى:
+Internal API for other plugins:
   get_wallet(session, user_id)               → Wallet
   add_coins(session, user_id, amount)        → Wallet
-  deduct_coins(session, user_id, amount)     → Wallet | None  (None = رصيد غير كافٍ)
+  deduct_coins(session, user_id, amount)     → Wallet | None  (None = insufficient balance)
 """
 
 from __future__ import annotations
@@ -48,14 +48,14 @@ async def _cmd_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             remaining = DAILY_COOLDOWN - (now - last_daily)
             hours, rem = divmod(int(remaining.total_seconds()), 3600)
             mins = rem // 60
-            daily_line = f"⏳ المكافأة اليومية بعد <b>{hours}س {mins}د</b>"
+            daily_line = f"⏳ Daily reward in <b>{hours}h {mins}m</b>"
         else:
-            daily_line = "✅ المكافأة اليومية جاهزة — استخدم /daily"
+            daily_line = "✅ Daily reward ready — use /daily"
 
         text = (
-            f"👛 <b>محفظة {user.first_name}</b>\n\n"
-            f"💰 الرصيد الحالي: <b>{wallet.coins:,} عملة</b>\n"
-            f"📈 إجمالي المكتسب: <b>{wallet.total_earned:,} عملة</b>\n\n"
+            f"👛 <b>{user.first_name}'s Wallet</b>\n\n"
+            f"💰 Current Balance: <b>{wallet.coins:,} coins</b>\n"
+            f"📈 Total Earned: <b>{wallet.total_earned:,} coins</b>\n\n"
             f"{daily_line}"
         )
     await update.message.reply_text(text, parse_mode="HTML")
@@ -75,8 +75,8 @@ async def _cmd_daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             hours, rem = divmod(int(remaining.total_seconds()), 3600)
             mins = rem // 60
             await update.message.reply_text(
-                f"⏳ لقد استلمت مكافأتك اليوم.\n"
-                f"عُد بعد <b>{hours} ساعة و{mins} دقيقة</b>.",
+                f"⏳ You have already received your reward today.\n"
+                f"Come back in <b>{hours} hours and {mins} minutes</b>.",
                 parse_mode="HTML",
             )
             return
@@ -86,9 +86,9 @@ async def _cmd_daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         wallet.last_daily_at = now
 
     await update.message.reply_text(
-        f"🎁 <b>مكافأتك اليومية!</b>\n\n"
-        f"حصلت على <b>{DAILY_REWARD} عملات</b> 💰\n"
-        f"رصيدك الآن: <b>{wallet.coins:,} عملة</b>",
+        f"🎁 <b>Your Daily Reward!</b>\n\n"
+        f"You received <b>{DAILY_REWARD} coins</b> 💰\n"
+        f"Your balance is now: <b>{wallet.coins:,} coins</b>",
         parse_mode="HTML",
     )
 

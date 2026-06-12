@@ -1,8 +1,8 @@
 """
-plugins/setlang.py — ضبط لغة البوت.
+plugins/setlang.py — Bot language setting.
 
-اللغة الوحيدة المدعومة هي العربية (ar).
-يُبلَّغ المستخدم بذلك عند استخدام الأمر /setlang.
+The bot language is fixed to English (en).
+Users are informed of this when using the /setlang command.
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 @user_admin
 async def cmd_setlang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "🇸🇦 لغة البوت مثبّتة على <b>العربية</b> وهي اللغة الوحيدة المدعومة.",
+        "🇸🇦 Bot language is fixed to <b>Arabic</b> and is the only supported language.",
         parse_mode=ParseMode.HTML,
     )
-    logger.info("setlang: طلب تغيير اللغة من chat %d — اللغة ثابتة على ar", update.effective_chat.id)
+    logger.info("setlang: Language change request from chat %d — language is fixed to ar", update.effective_chat.id)
 
 
 async def register(application: Application) -> None:

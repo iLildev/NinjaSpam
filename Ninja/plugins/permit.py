@@ -95,10 +95,10 @@ async def cmd_permit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     user_id, args_text = await extract_user_and_text(update, context)
     if not user_id:
         await message.reply_text(
-            "⚠️ الاستخدام:\n"
-            "<code>/permit @user 10</code> — 10 رسائل\n"
-            "<code>/permit @user 30m</code> — 30 دقيقة\n"
-            "<code>/permit @user 10 30m</code> — 10 رسائل أو 30 دقيقة",
+            "⚠️ Usage:\n"
+            "<code>/permit @user 10</code> — 10 messages\n"
+            "<code>/permit @user 30m</code> — 30 minutes\n"
+            "<code>/permit @user 10 30m</code> — 10 messages OR 30 minutes",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -117,8 +117,8 @@ async def cmd_permit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     if not msg_limit and not time_limit:
         await message.reply_text(
-            "⚠️ حدد عدد رسائل أو مدة زمنية:\n"
-            "<code>/permit @user 10</code>  أو  <code>/permit @user 1h</code>",
+            "⚠️ Specify message count or duration:\n"
+            "<code>/permit @user 10</code> or <code>/permit @user 1h</code>",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -156,18 +156,18 @@ async def cmd_permit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     parts = []
     if msg_limit:
-        parts.append(f"🔢 <b>{msg_limit}</b> رسالة")
+        parts.append(f"🔢 <b>{msg_limit}</b> messages")
     if time_limit:
         delta = time_limit - now
         mins = int(delta.total_seconds() / 60)
-        parts.append(f"⏳ <b>{mins}</b> دقيقة")
+        parts.append(f"⏳ <b>{mins}</b> minutes")
 
     await message.reply_text(
-        f"✅ <b>Permit ممنوح</b>\n"
+        f"✅ <b>Permit Granted</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 المستخدم: {mention}\n"
-        f"📋 الصلاحية: {' أو '.join(parts)}\n"
-        f"<i>سيتجاوز الفلاتر التلقائية (روابط، blacklist، strict mode)</i>",
+        f"👤 User: {mention}\n"
+        f"📋 Validity: {' OR '.join(parts)}\n"
+        f"<i>Will bypass automated filters (links, blacklist, strict mode)</i>",
         parse_mode=ParseMode.HTML,
     )
     logger.info("permit: granted to user %d in chat %d (msgs=%s, time=%s)", user_id, chat.id, msg_limit, time_limit)
@@ -182,13 +182,13 @@ async def cmd_unpermit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     chat = update.effective_chat
     user_id, _ = await extract_user_and_text(update, context)
     if not user_id:
-        await update.message.reply_text("⚠️ حدد المستخدم: <code>/unpermit @user</code>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("⚠️ Specify user: <code>/unpermit @user</code>", parse_mode=ParseMode.HTML)
         return
 
     async with get_session() as session:
         row = await session.get(PermittedUser, (chat.id, user_id))
         if not row:
-            await update.message.reply_text("ℹ️ هذا المستخدم ليس لديه permit نشط.")
+            await update.message.reply_text("ℹ️ This user does not have an active permit.")
             return
         await session.delete(row)
         await session.commit()
@@ -200,7 +200,7 @@ async def cmd_unpermit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         mention = f'<a href="tg://user?id={user_id}">{user_id}</a>'
 
     await update.message.reply_text(
-        f"🚫 <b>Permit مُلغى</b>: {mention}",
+        f"🚫 <b>Permit Revoked</b>: {mention}",
         parse_mode=ParseMode.HTML,
     )
 
@@ -234,24 +234,24 @@ async def cmd_permits(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         active.append(r)
 
     if not active:
-        await update.message.reply_text("📋 لا يوجد مستخدمون لديهم permit نشط.")
+        await update.message.reply_text("📋 No users have an active permit.")
         return
 
     lines = []
     for r in active:
         parts = []
         if r.messages_remaining is not None:
-            parts.append(f"{r.messages_remaining} رسالة")
+            parts.append(f"{r.messages_remaining} msgs")
         if r.expires_at is not None:
             exp = r.expires_at.replace(tzinfo=timezone.utc) if r.expires_at.tzinfo is None else r.expires_at
             delta = exp - now
             mins = max(0, int(delta.total_seconds() / 60))
-            parts.append(f"{mins}د متبقية")
-        detail = " | ".join(parts) if parts else "دون حد"
+            parts.append(f"{mins}m left")
+        detail = " | ".join(parts) if parts else "No limit"
         lines.append(f"• <a href='tg://user?id={r.user_id}'>{r.user_id}</a> — {detail}")
 
     await update.message.reply_text(
-        f"📋 <b>Permits النشطة ({len(active)})</b>\n"
+        f"📋 <b>Active Permits ({len(active)})</b>\n"
         f"━━━━━━━━━━━━━━━\n" + "\n".join(lines),
         parse_mode=ParseMode.HTML,
     )

@@ -151,9 +151,9 @@ def _parse_scripts(raw: str) -> Optional[Set[str]]:
 def _scripts_label(scripts_csv: str, lang: str) -> str:
     """Human-readable label for the allowed-scripts CSV."""
     name_map = {
-        "arabic": {"en": "Arabic", "ar": "العربية", "fr": "Arabe", "zh": "阿拉伯语"},
-        "latin":  {"en": "Latin (French/English/…)", "ar": "اللاتينية", "fr": "Latin", "zh": "拉丁字母"},
-        "cjk":    {"en": "Chinese/Japanese/Korean", "ar": "صيني/ياباني/كوري", "fr": "Chinois/Japonais/Coréen", "zh": "中文/日文/韩文"},
+        "arabic": {"en": "Arabic", "ar": "Arabic", "fr": "Arabe", "zh": "阿拉伯语"},
+        "latin":  {"en": "Latin (French/English/…)", "ar": "Latin", "fr": "Latin", "zh": "拉丁字母"},
+        "cjk":    {"en": "Chinese/Japanese/Korean", "ar": "Chinese/Japanese/Korean", "fr": "Chinois/Japonais/Coréen", "zh": "中文/日文/韩文"},
     }
     labels = []
     for script in scripts_csv.split(","):

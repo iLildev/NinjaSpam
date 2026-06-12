@@ -1,37 +1,37 @@
 """
-plugins/farm_game.py — لعبة المزرعة الكاملة 🌾
+plugins/farm_game.py — Complete Farm Game 🌾
 
-تشترك مع لعبة القلاع في نظام المحفظة العامة (Wallet.coins).
-الذهب المستخدم هنا هو عملة المحفظة فقط — لا علاقة له بذهب القلعة.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-الأوامر:
-  /create_farm          — إنشاء مزرعتك
-  /my_farm              — عرض حالة مزرعتك وأراضيها
-  /farm_shop            — عرض البذور وأسعارها
-  /plant <محصول> <رقم>  — زراعة محصول في قطعة أرض
-  /plant_all <محصول>    — زراعة جميع الأراضي الفارغة بمحصول واحد
-  /harvest              — حصاد كل المحاصيل الناضجة
-  /my_harvest           — عرض مخزون المحاصيل
-  /sell <محصول> <كمية>  — بيع محصول بالعملات
-  /sell_all             — بيع جميع المحاصيل في المخزون
-  /upgrade_farm         — تطوير المزرعة (يضيف أراضي جديدة)
+Shares the global wallet system with the Castle game (Wallet.coins).
+Gold used here is purely wallet currency — unrelated to Castle gold.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-جدول المحاصيل:
-  قمح   (wheat)  — 5 عملات/زراعة   | 30 دقيقة  | يُباع بـ 15  عملة
-  شعير  (barley) — 8 عملات/زراعة   | 45 دقيقة  | يُباع بـ 25  عملة
-  طماطم (tomato) — 15 عملات/زراعة  | 90 دقيقة  | يُباع بـ 50  عملة
-  تفاح  (apple)  — 30 عملات/زراعة  | 3 ساعات   | يُباع بـ 110 عملة
-  عنب   (grape)  — 50 عملات/زراعة  | 6 ساعات   | يُباع بـ 200 عملة
+Commands:
+  /create_farm          — Create your farm
+  /my_farm              — View your farm status and plots
+  /farm_shop            — View seeds and prices
+  /plant <crop> <num>   — Plant a crop in a plot
+  /plant_all <crop>     — Plant one crop in all empty plots
+  /harvest              — Harvest all ripe crops
+  /my_harvest           — View crop inventory
+  /sell <crop> <qty>    — Sell a crop for coins
+  /sell_all             — Sell all crops in inventory
+  /upgrade_farm         — Upgrade the farm (adds new plots)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-مستويات المزرعة:
-  مستوى 1 — 3 أراضٍ  (مجاني)
-  مستوى 2 — 5 أراضٍ  (200 عملة)
-  مستوى 3 — 8 أراضٍ  (500 عملة)
-  مستوى 4 — 12 أرضاً (1000 عملة)
-  مستوى 5 — 16 أرضاً (2000 عملة)
+Crop Table:
+  Wheat   (wheat)  — 5 coins/plant   | 30 mins   | Sells for 15  coins
+  Barley  (barley) — 8 coins/plant   | 45 mins   | Sells for 25  coins
+  Tomato  (tomato) — 15 coins/plant  | 90 mins   | Sells for 50  coins
+  Apple   (apple)  — 30 coins/plant  | 3 hours   | Sells for 110 coins
+  Grape   (grape)  — 50 coins/plant  | 6 hours   | Sells for 200 coins
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Farm Levels:
+  Level 1 — 3 plots  (Free)
+  Level 2 — 5 plots  (200 coins)
+  Level 3 — 8 plots  (500 coins)
+  Level 4 — 12 plots (1000 coins)
+  Level 5 — 16 plots (2000 coins)
 """
 
 from __future__ import annotations
@@ -54,29 +54,29 @@ _utcnow = lambda: datetime.now(tz=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
-# ثوابت اللعبة
+# Game Constants
 # ---------------------------------------------------------------------------
 
-# {crop_key: (ar_name, emoji, plant_cost, grow_minutes, sell_price)}
+# {crop_key: (name, emoji, plant_cost, grow_minutes, sell_price)}
 CROPS: dict[str, tuple[str, str, int, int, int]] = {
-    "wheat":  ("قمح",   "🌾",  5,  30,  15),
-    "barley": ("شعير",  "🌿",  8,  45,  25),
-    "tomato": ("طماطم", "🍅", 15,  90,  50),
-    "apple":  ("تفاح",  "🍎", 30, 180, 110),
-    "grape":  ("عنب",   "🍇", 50, 360, 200),
+    "wheat":  ("Wheat",   "🌾",  5,  30,  15),
+    "barley": ("Barley",  "🌿",  8,  45,  25),
+    "tomato": ("Tomato",  "🍅", 15,  90,  50),
+    "apple":  ("Apple",   "🍎", 30, 180, 110),
+    "grape":  ("Grape",   "🍇", 50, 360, 200),
 }
 
 CROP_ALIASES: dict[str, str] = {
-    "wheat": "wheat", "قمح": "wheat",
-    "barley": "barley", "شعير": "barley",
-    "tomato": "tomato", "طماطم": "tomato",
-    "apple": "apple", "تفاح": "apple",
-    "grape": "grape", "عنب": "grape",
+    "wheat": "wheat", "wheat_ar": "wheat",
+    "barley": "barley", "barley_ar": "barley",
+    "tomato": "tomato", "tomato_ar": "tomato",
+    "apple": "apple", "apple_ar": "apple",
+    "grape": "grape", "grape_ar": "grape",
 }
 
-# {current_level: (plots_count, upgrade_cost)}  — plots_count بعد التطوير
+# {current_level: (plots_count, upgrade_cost)} — plots_count after upgrade
 FARM_LEVELS: dict[int, tuple[int, int]] = {
-    1: (3,    0),     # ابتدائي — مجاني
+    1: (3,    0),     # Initial — Free
     2: (5,  200),
     3: (8,  500),
     4: (12, 1000),
@@ -86,10 +86,10 @@ MAX_FARM_LEVEL = 5
 
 
 # ---------------------------------------------------------------------------
-# أدوات مساعدة
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _crop_ar(key: str) -> str:
+def _crop_name(key: str) -> str:
     return CROPS[key][0] if key in CROPS else key
 
 
@@ -133,36 +133,36 @@ def _plots_for_level(level: int) -> int:
 def _time_remaining(ready_at: datetime) -> str:
     diff = ready_at - _utcnow()
     if diff.total_seconds() <= 0:
-        return "جاهز ✅"
+        return "Ready ✅"
     h, rem = divmod(int(diff.total_seconds()), 3600)
     m = rem // 60
-    return f"{h}س {m}د" if h else f"{m}د"
+    return f"{h}h {m}m" if h else f"{m}m"
 
 
 def _render_plots(plots: list[FarmPlot]) -> str:
     lines = []
     for p in plots:
         if not p.crop:
-            lines.append(f"  [{p.plot_number}] 🟫 فارغة")
+            lines.append(f"  [{p.plot_number}] 🟫 Empty")
         elif p.can_harvest:
-            lines.append(f"  [{p.plot_number}] {_crop_emoji(p.crop.value)} {_crop_ar(p.crop.value)} — ✅ جاهز للحصاد")
+            lines.append(f"  [{p.plot_number}] {_crop_emoji(p.crop.value)} {_crop_name(p.crop.value)} — ✅ Ready to harvest")
         else:
             lines.append(
-                f"  [{p.plot_number}] {_crop_emoji(p.crop.value)} {_crop_ar(p.crop.value)}"
+                f"  [{p.plot_number}] {_crop_emoji(p.crop.value)} {_crop_name(p.crop.value)}"
                 f" — ⏳ {_time_remaining(p.ready_at)}"
             )
     return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
-# الأوامر
+# Commands
 # ---------------------------------------------------------------------------
 
 async def cmd_create_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
@@ -170,9 +170,9 @@ async def cmd_create_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if existing:
             plots = await _get_plots(session, existing.id)
             await update.message.reply_text(
-                f"🌾 مزرعتك موجودة بالفعل!\n"
-                f"المستوى: {existing.level} | الأراضي: {len(plots)}\n"
-                f"استخدم /my_farm لعرض التفاصيل."
+                f"🌾 Your farm already exists!\n"
+                f"Level: {existing.level} | Plots: {len(plots)}\n"
+                f"Use /my_farm to see details."
             )
             return
 
@@ -185,10 +185,10 @@ async def cmd_create_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             session.add(FarmPlot(farm_id=farm.id, plot_number=i))
 
     await update.message.reply_text(
-        f"🌾 <b>تم إنشاء مزرعتك!</b>\n\n"
-        f"لديك <b>{num_plots} أراضٍ</b> جاهزة للزراعة.\n\n"
-        f"💡 ابدأ بـ /farm_shop لمعرفة البذور\n"
-        f"ثم: /plant wheat 1  (زرع قمح في الأرض رقم 1)"
+        f"🌾 <b>Your farm has been created!</b>\n\n"
+        f"You have <b>{num_plots} plots</b> ready for planting.\n\n"
+        f"💡 Start with /farm_shop to see seeds\n"
+        f"Then: /plant wheat 1  (plant wheat in plot #1)"
     )
 
 
@@ -196,13 +196,13 @@ async def cmd_my_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         plots  = await _get_plots(session, farm.id)
@@ -214,15 +214,15 @@ async def cmd_my_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         upgrade_line = ""
         if farm.level < MAX_FARM_LEVEL:
             next_cost = FARM_LEVELS[farm.level + 1][1]
-            upgrade_line = f"\n⬆️ تطوير للمستوى {farm.level+1}: {next_cost} عملة — /upgrade_farm"
+            upgrade_line = f"\n⬆️ Upgrade to Level {farm.level+1}: {next_cost} coins — /upgrade_farm"
 
         text = (
-            f"🌾 <b>مزرعة {user.first_name}</b>\n"
+            f"🌾 <b>{user.first_name}'s Farm</b>\n"
             f"{'━'*28}\n"
-            f"📊 المستوى: <b>{farm.level}</b> | الأراضي: <b>{len(plots)}</b>\n"
-            f"💰 رصيدك: <b>{wallet.coins:,} عملة</b>\n\n"
-            f"✅ جاهزة للحصاد: {ready_count}  |  🟫 فارغة: {empty_count}\n\n"
-            f"<b>حالة الأراضي:</b>\n"
+            f"📊 Level: <b>{farm.level}</b> | Plots: <b>{len(plots)}</b>\n"
+            f"💰 Balance: <b>{wallet.coins:,} coins</b>\n\n"
+            f"✅ Ready to harvest: {ready_count}  |  🟫 Empty: {empty_count}\n\n"
+            f"<b>Plot Status:</b>\n"
             f"{_render_plots(plots)}"
             f"{upgrade_line}"
         )
@@ -231,20 +231,20 @@ async def cmd_my_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def cmd_farm_shop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     lines = [
-        "🌱 <b>متجر البذور</b>",
+        "🌱 <b>Seed Shop</b>",
         "━━━━━━━━━━━━━━━━━━━━",
-        "المحصول       | التكلفة | الوقت  | سعر البيع",
+        "Crop          | Cost  | Time   | Sell Price",
         "━━━━━━━━━━━━━━━━━━━━",
     ]
-    for key, (ar, em, cost, mins, sell) in CROPS.items():
+    for key, (name, em, cost, mins, sell) in CROPS.items():
         h, m = divmod(mins, 60)
-        time_str = f"{h}س {m}د" if h else f"{m}د"
-        lines.append(f"{em} {ar:6} ({key:6}) | {cost:5} | {time_str:6} | {sell} عملة")
+        time_str = f"{h}h {m}m" if h else f"{m}m"
+        lines.append(f"{em} {name:10} ({key:6}) | {cost:5} | {time_str:6} | {sell} coins")
 
     lines += [
         "━━━━━━━━━━━━━━━━━━━━",
-        "📌 الزراعة: <code>/plant wheat 1</code>",
-        "📌 زراعة الكل: <code>/plant_all tomato</code>",
+        "📌 Planting: <code>/plant wheat 1</code>",
+        "📌 Plant All: <code>/plant_all tomato</code>",
     ]
     await update.message.reply_text("\n".join(lines))
 
@@ -253,52 +253,56 @@ async def cmd_plant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
-            "📌 الاستخدام: <code>/plant &lt;محصول&gt; &lt;رقم الأرض&gt;</code>\n"
-            "مثال: <code>/plant tomato 2</code>"
+            "📌 Usage: <code>/plant &lt;crop&gt; &lt;plot_num&gt;</code>\n"
+            "Example: <code>/plant tomato 2</code>"
         )
         return
 
     raw_crop = context.args[0].lower()
-    crop_key = CROP_ALIASES.get(raw_crop)
+    crop_key = CROP_ALIASES.get(raw_crop) or (raw_crop if raw_crop in CROPS else None)
     if not crop_key:
-        await update.message.reply_text("❌ محصول غير معروف. استخدم /farm_shop لعرض الخيارات.")
+        await update.message.reply_text("❌ Unknown crop. Use /farm_shop to see options.")
         return
 
     try:
         plot_num = int(context.args[1])
     except ValueError:
-        await update.message.reply_text("❌ رقم الأرض يجب أن يكون رقماً.")
+        await update.message.reply_text("❌ Plot number must be a number.")
         return
 
-    ar_name, emoji, cost, grow_mins, sell_price = CROPS[crop_key]
+    name, emoji, cost, grow_mins, sell_price = CROPS[crop_key]
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         plots = await _get_plots(session, farm.id)
         max_plot = len(plots)
         if plot_num < 1 or plot_num > max_plot:
             await update.message.reply_text(
-                f"❌ رقم الأرض يجب أن يكون بين 1 و {max_plot}.\n"
-                f"مزرعتك تحتوي على {max_plot} أراضٍ."
+                f"❌ Plot number must be between 1 and {max_plot}.\n"
+                f"Your farm has {max_plot} plots."
             )
             return
 
         plot = next((p for p in plots if p.plot_number == plot_num), None)
-        if plot and plot.crop:
-            status = "✅ جاهز للحصاد" if plot.can_harvest else f"⏳ {_time_remaining(plot.ready_at)}"
+        if not plot:
+            await update.message.reply_text(f"❌ Plot {plot_num} not found.")
+            return
+
+        if plot.crop:
+            status = "✅ Ready to harvest" if plot.can_harvest else f"⏳ {_time_remaining(plot.ready_at)}"
             await update.message.reply_text(
-                f"🌱 الأرض [{plot_num}] مشغولة بـ {_crop_emoji(plot.crop.value)} {_crop_ar(plot.crop.value)}\n"
-                f"الحالة: {status}\n"
-                f"احصد أولاً بـ /harvest"
+                f"🌱 Plot [{plot_num}] is occupied by {_crop_emoji(plot.crop.value)} {_crop_name(plot.crop.value)}\n"
+                f"Status: {status}\n"
+                f"Harvest first with /harvest"
             )
             return
 
@@ -306,8 +310,8 @@ async def cmd_plant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if wallet is None:
             w = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"💸 رصيدك غير كافٍ!\n"
-                f"تكلفة الزراعة: {cost} عملة | لديك: {w.coins} عملة"
+                f"❌ Insufficient balance.\n"
+                f"Planting cost: {cost} coins | You have: {w.coins} coins"
             )
             return
 
@@ -319,43 +323,43 @@ async def cmd_plant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         remaining_coins = wallet.coins
 
     h, m = divmod(grow_mins, 60)
-    time_str = f"{h} ساعة و{m} دقيقة" if h and m else (f"{h} ساعة" if h else f"{m} دقيقة")
+    time_str = f"{h} hours and {m} minutes" if h and m else (f"{h} hours" if h else f"{m} minutes")
     await update.message.reply_text(
-        f"{emoji} <b>تمت الزراعة!</b>\n\n"
-        f"الأرض [{plot_num}]: {ar_name}\n"
-        f"⏳ تنضج بعد: <b>{time_str}</b>\n"
-        f"💰 رصيدك المتبقي: {remaining_coins:,} عملة\n\n"
-        f"استخدم /harvest عند نضج المحصول."
+        f"{emoji} <b>Planted!</b>\n\n"
+        f"Plot [{plot_num}]: {name}\n"
+        f"⏳ Matures in: <b>{time_str}</b>\n"
+        f"💰 Remaining balance: {remaining_coins:,} coins\n\n"
+        f"Use /harvest when the crop is ready."
     )
 
 
 async def cmd_plant_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """زرع جميع الأراضي الفارغة بنفس المحصول."""
+    """Plant the same crop in all empty plots."""
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     if not context.args:
         await update.message.reply_text(
-            "📌 الاستخدام: <code>/plant_all &lt;محصول&gt;</code>\n"
-            "مثال: <code>/plant_all wheat</code>"
+            "📌 Usage: <code>/plant_all &lt;crop&gt;</code>\n"
+            "Example: <code>/plant_all wheat</code>"
         )
         return
 
     raw_crop = context.args[0].lower()
-    crop_key = CROP_ALIASES.get(raw_crop)
+    crop_key = CROP_ALIASES.get(raw_crop) or (raw_crop if raw_crop in CROPS else None)
     if not crop_key:
-        await update.message.reply_text("❌ محصول غير معروف. استخدم /farm_shop لعرض الخيارات.")
+        await update.message.reply_text("❌ Unknown crop. Use /farm_shop to see options.")
         return
 
-    ar_name, emoji, cost, grow_mins, sell_price = CROPS[crop_key]
+    name, emoji, cost, grow_mins, sell_price = CROPS[crop_key]
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         plots  = await _get_plots(session, farm.id)
@@ -363,8 +367,8 @@ async def cmd_plant_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         if not empty:
             await update.message.reply_text(
-                "🌱 جميع أراضيك مشغولة بالفعل!\n"
-                "احصد أولاً بـ /harvest"
+                "🌱 All your plots are currently occupied!\n"
+                "Harvest first with /harvest"
             )
             return
 
@@ -374,9 +378,9 @@ async def cmd_plant_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             w = await get_wallet(session, user.id)
             can_afford = w.coins // cost
             await update.message.reply_text(
-                f"💸 رصيدك غير كافٍ لزراعة {len(empty)} أراضٍ!\n"
-                f"المطلوب: {total_cost} عملة | لديك: {w.coins} عملة\n\n"
-                f"يمكنك زراعة {can_afford} أرض فقط — استخدم /plant"
+                f"❌ Insufficient balance to plant {len(empty)} plots!\n"
+                f"Required: {total_cost} coins | You have: {w.coins} coins\n\n"
+                f"You can only afford {can_afford} plots — use /plant"
             )
             return
 
@@ -391,12 +395,12 @@ async def cmd_plant_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         remaining_coins = wallet.coins
 
     h, m = divmod(grow_mins, 60)
-    time_str = f"{h}س {m}د" if h else f"{m}د"
+    time_str = f"{h}h {m}m" if h else f"{m}m"
     await update.message.reply_text(
-        f"{emoji} <b>تمت زراعة {len(empty)} أراضٍ بـ {ar_name}!</b>\n\n"
-        f"التكلفة الإجمالية: {total_cost} عملة\n"
-        f"⏳ تنضج بعد: <b>{time_str}</b>\n"
-        f"💰 رصيدك المتبقي: {remaining_coins:,} عملة"
+        f"{emoji} <b>Planted {len(empty)} plots of {name}!</b>\n\n"
+        f"Total Cost: {total_cost} coins\n"
+        f"⏳ Matures in: <b>{time_str}</b>\n"
+        f"💰 Remaining balance: {remaining_coins:,} coins"
     )
 
 
@@ -404,13 +408,13 @@ async def cmd_harvest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         plots = await _get_plots(session, farm.id)
@@ -421,11 +425,11 @@ async def cmd_harvest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if not_ready:
                 soonest = min(p.ready_at for p in not_ready)
                 await update.message.reply_text(
-                    f"⏳ لا توجد محاصيل ناضجة بعد.\n"
-                    f"أقرب حصاد بعد: <b>{_time_remaining(soonest)}</b>"
+                    f"⏳ No crops are ready yet.\n"
+                    f"Next harvest in: <b>{_time_remaining(soonest)}</b>"
                 )
             else:
-                await update.message.reply_text("🟫 جميع أراضيك فارغة — ازرع أولاً بـ /plant")
+                await update.message.reply_text("🟫 All your plots are empty — plant first with /plant")
             return
 
         inv = await _get_or_create_inventory(session, user.id, chat_id)
@@ -440,12 +444,12 @@ async def cmd_harvest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             p.ready_at   = None
             p.is_ready   = False
 
-    lines = [f"🌾 <b>تم الحصاد!</b>\n"]
+    lines = [f"🌾 <b>Harvest complete!</b>\n"]
     for key, count in harvested.items():
-        ar, em, _, _, sell = CROPS[key]
-        lines.append(f"  {em} {ar}: <b>{count}</b> وحدة (تُباع بـ {sell * count} عملة)")
+        name, em, _, _, sell = CROPS[key]
+        lines.append(f"  {em} {name}: <b>{count}</b> units (sells for {sell * count} coins)")
 
-    lines.append("\n💡 بيع المحصول: /sell_all  أو  /sell wheat 5")
+    lines.append("\n💡 Selling crops: /sell_all  or  /sell wheat 5")
     await update.message.reply_text("\n".join(lines))
 
 
@@ -453,27 +457,27 @@ async def cmd_my_harvest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
         inv = await _get_or_create_inventory(session, user.id, chat_id)
 
     total_value = 0
-    lines = [f"🏪 <b>مخزون {user.first_name}</b>\n━━━━━━━━━━━━━━━━"]
-    for key, (ar, em, _, _, sell) in CROPS.items():
+    lines = [f"🏪 <b>{user.first_name}'s Inventory</b>\n━━━━━━━━━━━━━━━━"]
+    for key, (name, em, _, _, sell) in CROPS.items():
         qty = getattr(inv, key)
         val = qty * sell
         total_value += val
-        mark = f"  — يُباع بـ {val} عملة" if qty > 0 else ""
-        lines.append(f"{em} {ar}: <b>{qty}</b>{mark}")
+        mark = f"  — sells for {val} coins" if qty > 0 else ""
+        lines.append(f"{em} {name}: <b>{qty}</b>{mark}")
 
-    lines.append(f"\n💰 القيمة الإجمالية: <b>{total_value} عملة</b>")
-    lines.append("🛒 بيع الكل: /sell_all")
+    lines.append(f"\n💰 Total Value: <b>{total_value} coins</b>")
+    lines.append("🛒 Sell All: /sell_all")
     await update.message.reply_text("\n".join(lines))
 
 
@@ -481,20 +485,20 @@ async def cmd_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
-            "📌 الاستخدام: <code>/sell &lt;محصول&gt; &lt;كمية&gt;</code>\n"
-            "مثال: <code>/sell tomato 3</code>"
+            "📌 Usage: <code>/sell &lt;crop&gt; &lt;qty&gt;</code>\n"
+            "Example: <code>/sell tomato 3</code>"
         )
         return
 
     raw_crop = context.args[0].lower()
-    crop_key = CROP_ALIASES.get(raw_crop)
+    crop_key = CROP_ALIASES.get(raw_crop) or (raw_crop if raw_crop in CROPS else None)
     if not crop_key:
-        await update.message.reply_text("❌ محصول غير معروف. استخدم /my_harvest لعرض مخزونك.")
+        await update.message.reply_text("❌ Unknown crop. Use /my_harvest to see your inventory.")
         return
 
     try:
@@ -502,15 +506,15 @@ async def cmd_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if qty <= 0:
             raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ الكمية يجب أن تكون رقماً موجباً.")
+        await update.message.reply_text("❌ Quantity must be a positive number.")
         return
 
-    ar_name, emoji, _, _, sell_price = CROPS[crop_key]
+    name, emoji, _, _, sell_price = CROPS[crop_key]
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         inv = await _get_or_create_inventory(session, user.id, chat_id)
@@ -518,8 +522,8 @@ async def cmd_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if available < qty:
             await update.message.reply_text(
-                f"❌ لديك {available} {emoji} {ar_name} فقط في المخزون.\n"
-                f"احصد المزيد بـ /harvest"
+                f"❌ You only have {available} {emoji} {name} in inventory.\n"
+                f"Harvest more with /harvest"
             )
             return
 
@@ -529,9 +533,9 @@ async def cmd_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         new_balance = wallet.coins
 
     await update.message.reply_text(
-        f"🛒 <b>تم البيع!</b>\n\n"
-        f"{emoji} {ar_name}: <b>{qty}</b> وحدة × {sell_price} = <b>{total_earned} عملة</b>\n"
-        f"💰 رصيدك الجديد: <b>{new_balance:,} عملة</b>"
+        f"🛒 <b>Sale complete!</b>\n\n"
+        f"{emoji} {name}: <b>{qty}</b> units × {sell_price} = <b>{total_earned} coins</b>\n"
+        f"💰 New balance: <b>{new_balance:,} coins</b>"
     )
 
 
@@ -539,31 +543,31 @@ async def cmd_sell_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         inv   = await _get_or_create_inventory(session, user.id, chat_id)
         total = 0
         sold_lines = []
 
-        for key, (ar, em, _, _, sell) in CROPS.items():
+        for key, (name, em, _, _, sell) in CROPS.items():
             qty = getattr(inv, key)
             if qty > 0:
                 earned = qty * sell
                 total += earned
-                sold_lines.append(f"  {em} {ar}: {qty} × {sell} = {earned} عملة")
+                sold_lines.append(f"  {em} {name}: {qty} × {sell} = {earned} coins")
                 setattr(inv, key, 0)
 
         if total == 0:
             await update.message.reply_text(
-                "🏪 مخزونك فارغ!\n"
-                "احصد محاصيلك أولاً بـ /harvest"
+                "🏪 Your inventory is empty!\n"
+                "Harvest your crops first with /harvest"
             )
             return
 
@@ -571,10 +575,10 @@ async def cmd_sell_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         new_balance = wallet.coins
 
     await update.message.reply_text(
-        f"🛒 <b>تم بيع جميع المحاصيل!</b>\n\n"
+        f"🛒 <b>All crops sold!</b>\n\n"
         + "\n".join(sold_lines) +
-        f"\n\n💰 إجمالي المكتسب: <b>{total} عملة</b>\n"
-        f"رصيدك الجديد: <b>{new_balance:,} عملة</b>"
+        f"\n\n💰 Total earned: <b>{total} coins</b>\n"
+        f"💰 New balance: <b>{new_balance:,} coins</b>"
     )
 
 
@@ -582,55 +586,47 @@ async def cmd_upgrade_farm(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     user    = update.effective_user
     chat_id = update.effective_chat.id
     if update.effective_chat.type == "private":
-        await update.message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await update.message.reply_text("⚠️ This command only works inside groups.")
         return
 
     async with get_session() as session:
         farm = await _get_farm(session, user.id, chat_id)
         if not farm:
-            await update.message.reply_text("🌾 أنشئ مزرعتك أولاً بـ /create_farm")
+            await update.message.reply_text("🌾 Create your farm first with /create_farm")
             return
 
         if farm.level >= MAX_FARM_LEVEL:
-            await update.message.reply_text(
-                f"🌟 مزرعتك بلغت أعلى مستوى ({MAX_FARM_LEVEL})!\n"
-                f"لديك {_plots_for_level(MAX_FARM_LEVEL)} أرضاً — لا يوجد تطوير إضافي."
-            )
+            await update.message.reply_text("✅ Your farm is already at the maximum level!")
             return
 
         next_level = farm.level + 1
-        new_plots_total, upgrade_cost = FARM_LEVELS[next_level]
-        current_plots_total = _plots_for_level(farm.level)
-        plots_to_add = new_plots_total - current_plots_total
+        num_plots, cost = FARM_LEVELS[next_level]
 
-        wallet = await deduct_coins(session, user.id, upgrade_cost)
+        wallet = await deduct_coins(session, user.id, cost)
         if wallet is None:
             w = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"💸 رصيدك غير كافٍ!\n"
-                f"تكلفة التطوير: {upgrade_cost} عملة | لديك: {w.coins} عملة"
+                f"❌ Insufficient balance.\n"
+                f"Upgrade cost: {cost} coins | You have: {w.coins} coins"
             )
             return
 
         farm.level = next_level
-        plots = await _get_plots(session, farm.id)
-        last_num = max((p.plot_number for p in plots), default=0)
-        for i in range(1, plots_to_add + 1):
-            session.add(FarmPlot(farm_id=farm.id, plot_number=last_num + i))
-
-        remaining_coins = wallet.coins
+        # Add new plots
+        current_plots = await _get_plots(session, farm.id)
+        for i in range(len(current_plots) + 1, num_plots + 1):
+            session.add(FarmPlot(farm_id=farm.id, plot_number=i))
 
     await update.message.reply_text(
-        f"⬆️ <b>تمت ترقية المزرعة!</b>\n\n"
-        f"المستوى الجديد: <b>{next_level}</b>\n"
-        f"أراضٍ جديدة: <b>+{plots_to_add}</b> (الإجمالي: {new_plots_total})\n"
-        f"التكلفة: {upgrade_cost} عملة\n"
-        f"💰 رصيدك المتبقي: {remaining_coins:,} عملة"
+        f"⬆️ <b>Farm Upgraded!</b>\n\n"
+        f"New Level: <b>{next_level}</b>\n"
+        f"Total Plots: <b>{num_plots}</b>\n"
+        f"💰 Remaining balance: {wallet.coins:,} coins"
     )
 
 
 # ---------------------------------------------------------------------------
-# تسجيل الإضافة
+# Register
 # ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:
@@ -644,4 +640,3 @@ async def register(application: Application) -> None:
     application.add_handler(CommandHandler("sell",         cmd_sell))
     application.add_handler(CommandHandler("sell_all",     cmd_sell_all))
     application.add_handler(CommandHandler("upgrade_farm", cmd_upgrade_farm))
-    logger.info("farm_game plugin registered — 10 commands.")

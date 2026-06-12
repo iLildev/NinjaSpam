@@ -28,10 +28,10 @@ from telegram.ext import (
 )
 
 from core.helpers.chat_status import user_admin
+from db.repositories import settings as settings_repo
 
 logger = logging.getLogger(__name__)
 
-_CHATBOT_ENABLED: set[int] = set()
 _API_URL = "https://fallenxbot.vercel.app/chatbot/message={}"
 
 
@@ -39,7 +39,10 @@ _API_URL = "https://fallenxbot.vercel.app/chatbot/message={}"
 async def chatbot_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
     msg = update.effective_message
-    is_on = chat.id in _CHATBOT_ENABLED
+    
+    settings = await settings_repo.get_or_create(chat.id)
+    is_on = settings.chatbot_enabled
+    
     status = "✅ Enabled" if is_on else "❌ Disabled"
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("Enable", callback_data=f"chatbot_on:{chat.id}"),
@@ -65,7 +68,7 @@ async def chatbot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     data = query.data
     if data.startswith("chatbot_on:"):
         chat_id = int(data.split(":")[1])
-        _CHATBOT_ENABLED.add(chat_id)
+        await settings_repo.update(chat_id, chatbot_enabled=True)
         await query.answer("Chatbot enabled.")
         await query.edit_message_text(
             f"Chatbot for <b>{chat.title}</b>: ✅ Enabled",
@@ -73,7 +76,7 @@ async def chatbot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
     elif data.startswith("chatbot_off:"):
         chat_id = int(data.split(":")[1])
-        _CHATBOT_ENABLED.discard(chat_id)
+        await settings_repo.update(chat_id, chatbot_enabled=False)
         await query.answer("Chatbot disabled.")
         await query.edit_message_text(
             f"Chatbot for <b>{chat.title}</b>: ❌ Disabled",
@@ -88,7 +91,9 @@ async def chatbot_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not message.text or chat.type == "private":
         return
-    if chat.id not in _CHATBOT_ENABLED:
+
+    settings = await settings_repo.get(chat.id)
+    if not settings or not settings.chatbot_enabled:
         return
 
     bot_username = (await bot.get_me()).username

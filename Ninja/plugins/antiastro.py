@@ -111,7 +111,7 @@ async def _take_action(
     if not succeeded:
         return
 
-    action_labels = {"ban": "banned", "mute": "muted", "warn": "warned", "ar": "محظور"}
+    action_labels = {"ban": "banned", "mute": "muted", "warn": "warned"}
     action_label = action_labels.get(action, action + "d")
 
     # Notify the group

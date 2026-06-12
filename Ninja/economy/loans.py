@@ -1,14 +1,14 @@
 """
-economy/loans.py — نظام الدين والسجن.
+economy/loans.py — Debt and Jail system.
 
-الأوامر:
-  /loan <amount>  — اقتراض (يتطلب حساباً بنكياً، قرض واحد فقط)
-  /repay <amount> — سداد جزئي أو كلي (أو /repay all)
-  /myloan         — عرض حالة القرض الحالي
-  /debtors        — قائمة المتأخرين في السداد
-  /bail           — دفع كفالة للخروج من السجن
-  /bailout        — دفع كفالة شخص آخر (رد على رسالته)
-  /myjail         — عرض حالة السجن
+Commands:
+  /loan <amount>  — Borrow (requires bank account, only one loan at a time)
+  /repay <amount> — Partial or full repayment (or /repay all)
+  /myloan         — Show current loan status
+  /debtors        — List of overdue debtors
+  /bail           — Pay bail to get out of jail
+  /bailout        — Pay bail for someone else (reply to their message)
+  /myjail         — Show jail status
 """
 
 from __future__ import annotations
@@ -58,13 +58,13 @@ async def cmd_loan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not args or not args[0].isdigit() or int(args[0]) <= 0:
         await update.message.reply_text(
-            f"🏦 <b>تسليف</b>\n\n"
-            f"الاستخدام: /loan <المبلغ>\n"
-            f"مثال: /loan 1000\n\n"
-            f"• الحد الأقصى: <b>{fmt_coins(LOAN_MAX)} عملة</b>\n"
-            f"• الفائدة: <b>10%</b>\n"
-            f"• مهلة السداد: <b>24 ساعة</b>\n"
-            f"• التأخر = سجن فوري 🔒",
+            f"🏦 <b>Loan</b>\n\n"
+            f"Usage: /loan <amount>\n"
+            f"Example: /loan 1000\n\n"
+            f"• Maximum: <b>{fmt_coins(LOAN_MAX)} coins</b>\n"
+            f"• Interest: <b>10%</b>\n"
+            f"• Repayment period: <b>24 hours</b>\n"
+            f"• Overdue = Immediate jail 🔒",
             parse_mode="HTML",
         )
         return
@@ -72,7 +72,7 @@ async def cmd_loan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     amount = int(args[0])
     if amount > LOAN_MAX:
         await update.message.reply_text(
-            f"❌ الحد الأقصى للقرض هو <b>{fmt_coins(LOAN_MAX)} عملة</b>.",
+            f"❌ Maximum loan amount is <b>{fmt_coins(LOAN_MAX)} coins</b>.",
             parse_mode="HTML",
         )
         return
@@ -81,8 +81,8 @@ async def cmd_loan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         bank = await get_bank_account_by_user(session, user.id)
         if not bank:
             await update.message.reply_text(
-                "❌ يجب أن يكون لديك حساب بنكي لاستخدام خدمة التسليف.\n"
-                "افتح حساباً بـ /openbank"
+                "❌ You must have a bank account to use the loan service.\n"
+                "Open an account with /openbank"
             )
             return
 
@@ -93,10 +93,10 @@ async def cmd_loan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         existing = await get_active_loan(session, user.id)
         if existing:
             await update.message.reply_text(
-                f"❌ لديك قرض قائم بالفعل!\n\n"
-                f"المبلغ المتبقي: <b>{fmt_coins(existing.remaining)} عملة</b>\n"
-                f"موعد السداد: {existing.deadline.strftime('%Y-%m-%d %H:%M')} UTC\n\n"
-                f"اسدد قرضك أولاً بـ /repay",
+                f"❌ You already have an active loan!\n\n"
+                f"Remaining amount: <b>{fmt_coins(existing.remaining)} coins</b>\n"
+                f"Repayment deadline: {existing.deadline.strftime('%Y-%m-%d %H:%M')} UTC\n\n"
+                f"Repay your loan first with /repay",
                 parse_mode="HTML",
             )
             return
@@ -115,12 +115,12 @@ async def cmd_loan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         wallet = await add_coins(session, user.id, amount)
 
     await update.message.reply_text(
-        f"💸 <b>تم التسليف!</b>\n\n"
-        f"حصلت على: <b>{fmt_coins(amount)} عملة</b>\n"
-        f"إجمالي الدين (مع فائدة 10%): <b>{fmt_coins(total_due)} عملة</b>\n"
-        f"آخر موعد للسداد: <b>{deadline.strftime('%Y-%m-%d %H:%M')} UTC</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>\n\n"
-        f"⚠️ التأخر في السداد يعني السجن الفوري!",
+        f"💸 <b>Loan granted!</b>\n\n"
+        f"You received: <b>{fmt_coins(amount)} coins</b>\n"
+        f"Total debt (with 10% interest): <b>{fmt_coins(total_due)} coins</b>\n"
+        f"Repayment deadline: <b>{deadline.strftime('%Y-%m-%d %H:%M')} UTC</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>\n\n"
+        f"⚠️ Late repayment means immediate jail!",
         parse_mode="HTML",
     )
 
@@ -136,14 +136,14 @@ async def cmd_repay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     async with get_session() as session:
         loan = await get_active_loan(session, user.id)
         if not loan:
-            await update.message.reply_text("✅ ليس لديك أي قرض قائم!")
+            await update.message.reply_text("✅ You don't have any active loan!")
             return
 
         if not args:
             await update.message.reply_text(
-                f"💳 <b>سداد القرض</b>\n\n"
-                f"الاستخدام: /repay <المبلغ> أو /repay all\n\n"
-                f"المبلغ المتبقي: <b>{fmt_coins(loan.remaining)} عملة</b>",
+                f"💳 <b>Repay Loan</b>\n\n"
+                f"Usage: /repay <amount> or /repay all\n\n"
+                f"Remaining amount: <b>{fmt_coins(loan.remaining)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -155,7 +155,7 @@ async def cmd_repay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         elif args[0].isdigit() and int(args[0]) > 0:
             pay_amount = int(args[0])
         else:
-            await update.message.reply_text("❌ أدخل مبلغاً صحيحاً أو اكتب /repay all")
+            await update.message.reply_text("❌ Enter a valid amount or type /repay all")
             return
 
         pay_amount = min(pay_amount, loan.remaining)
@@ -163,9 +163,9 @@ async def cmd_repay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await deduct_coins(session, user.id, pay_amount)
         if result is None:
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"رصيدك: <b>{fmt_coins(wallet.coins)} عملة</b>\n"
-                f"المطلوب: <b>{fmt_coins(pay_amount)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Balance: <b>{fmt_coins(wallet.coins)} coins</b>\n"
+                f"Required: <b>{fmt_coins(pay_amount)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -181,17 +181,17 @@ async def cmd_repay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if paid_off:
         await update.message.reply_text(
-            f"✅ <b>تم سداد القرض بالكامل!</b>\n\n"
-            f"دفعت: <b>{fmt_coins(pay_amount)} عملة</b>\n"
-            f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+            f"✅ <b>Loan fully repaid!</b>\n\n"
+            f"You paid: <b>{fmt_coins(pay_amount)} coins</b>\n"
+            f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
             parse_mode="HTML",
         )
     else:
         await update.message.reply_text(
-            f"💳 <b>تم الدفع الجزئي</b>\n\n"
-            f"دفعت: <b>{fmt_coins(pay_amount)} عملة</b>\n"
-            f"المتبقي: <b>{fmt_coins(loan.remaining)} عملة</b>\n"
-            f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+            f"💳 <b>Partial payment made</b>\n\n"
+            f"You paid: <b>{fmt_coins(pay_amount)} coins</b>\n"
+            f"Remaining: <b>{fmt_coins(loan.remaining)} coins</b>\n"
+            f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
             parse_mode="HTML",
         )
 
@@ -206,21 +206,21 @@ async def cmd_myloan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         loan = await get_active_loan(session, user.id)
 
     if not loan:
-        await update.message.reply_text("✅ ليس لديك أي قرض قائم. أنت خالٍ من الديون!")
+        await update.message.reply_text("✅ You don't have any active loan. You are debt-free!")
         return
 
-    status = "⏳ قيد السداد"
+    status = "⏳ Repayment in progress"
     if loan.is_overdue:
-        status = "🚨 <b>متأخر — ستُسجن في أول أمر!</b>"
+        status = "🚨 <b>Overdue — you will be jailed on your first command!</b>"
 
     await update.message.reply_text(
-        f"📋 <b>قرضي</b>\n\n"
-        f"المبلغ الأصلي: <b>{fmt_coins(loan.principal)} عملة</b>\n"
-        f"إجمالي الدين: <b>{fmt_coins(loan.total_due)} عملة</b>\n"
-        f"المسدّد: <b>{fmt_coins(loan.amount_repaid)} عملة</b>\n"
-        f"المتبقي: <b>{fmt_coins(loan.remaining)} عملة</b>\n"
-        f"آخر موعد: <b>{loan.deadline.strftime('%Y-%m-%d %H:%M')} UTC</b>\n"
-        f"الحالة: {status}",
+        f"📋 <b>My Loan</b>\n\n"
+        f"Principal: <b>{fmt_coins(loan.principal)} coins</b>\n"
+        f"Total Debt: <b>{fmt_coins(loan.total_due)} coins</b>\n"
+        f"Repaid: <b>{fmt_coins(loan.amount_repaid)} coins</b>\n"
+        f"Remaining: <b>{fmt_coins(loan.remaining)} coins</b>\n"
+        f"Deadline: <b>{loan.deadline.strftime('%Y-%m-%d %H:%M')} UTC</b>\n"
+        f"Status: {status}",
         parse_mode="HTML",
     )
 
@@ -241,18 +241,18 @@ async def cmd_debtors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )).all()
 
     if not rows:
-        await update.message.reply_text("✅ لا يوجد مديونون حالياً!")
+        await update.message.reply_text("✅ No active debtors!")
         return
 
     now = _utcnow()
     lines = []
     for loan, fname, uname in rows:
         name = fmt_user(fname or f"user_{loan.user_id}", uname)
-        overdue = "🚨 متأخر" if loan.is_overdue else "⏳"
-        lines.append(f"{overdue} {name} — <b>{fmt_coins(loan.remaining)}</b> عملة")
+        overdue = "🚨 Overdue" if loan.is_overdue else "⏳"
+        lines.append(f"{overdue} {name} — <b>{fmt_coins(loan.remaining)}</b> coins")
 
     await update.message.reply_text(
-        f"💳 <b>قائمة المديونين</b>\n\n" + "\n".join(lines),
+        f"💳 <b>Debtors List</b>\n\n" + "\n".join(lines),
         parse_mode="HTML",
     )
 
@@ -267,14 +267,14 @@ async def cmd_myjail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         jail = await get_jail(session, user.id)
 
     if not jail or not jail.is_active:
-        await update.message.reply_text("✅ أنت حر — لست في السجن!")
+        await update.message.reply_text("✅ You are free — not in jail!")
         return
 
     await update.message.reply_text(
-        f"🔒 <b>أنت في السجن</b>\n\n"
-        f"السبب: {jail.reason}\n"
-        f"الإفراج التلقائي بعد: <b>{jail.time_left_str}</b>\n\n"
-        f"أو ادفع كفالة <b>{fmt_coins(jail.bail_amount)} عملة</b> بـ /bail",
+        f"🔒 <b>You are in jail</b>\n\n"
+        f"Reason: {jail.reason}\n"
+        f"Automatic release in: <b>{jail.time_left_str}</b>\n\n"
+        f"Or pay bail <b>{fmt_coins(jail.bail_amount)} coins</b> with /bail",
         parse_mode="HTML",
     )
 
@@ -288,17 +288,17 @@ async def cmd_bail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     async with get_session() as session:
         jail = await get_jail(session, user.id)
         if not jail or not jail.is_active:
-            await update.message.reply_text("✅ أنت لست في السجن!")
+            await update.message.reply_text("✅ You are not in jail!")
             return
 
         wallet = await deduct_coins(session, user.id, jail.bail_amount)
         if wallet is None:
             current = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ لدفع الكفالة!\n"
-                f"الكفالة: <b>{fmt_coins(jail.bail_amount)} عملة</b>\n"
-                f"رصيدك: <b>{fmt_coins(current.coins)} عملة</b>\n\n"
-                f"انتظر الإفراج التلقائي بعد: <b>{jail.time_left_str}</b>",
+                f"❌ Insufficient balance to pay bail!\n"
+                f"Bail: <b>{fmt_coins(jail.bail_amount)} coins</b>\n"
+                f"Balance: <b>{fmt_coins(current.coins)} coins</b>\n\n"
+                f"Wait for automatic release in: <b>{jail.time_left_str}</b>",
                 parse_mode="HTML",
             )
             return
@@ -306,9 +306,9 @@ async def cmd_bail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await release_user(session, user.id)
 
     await update.message.reply_text(
-        f"🔓 <b>خرجت من السجن!</b>\n\n"
-        f"دفعت كفالة: <b>{fmt_coins(jail.bail_amount)} عملة</b>\n"
-        f"💰 رصيدك الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"🔓 <b>You've been released from jail!</b>\n\n"
+        f"Paid bail: <b>{fmt_coins(jail.bail_amount)} coins</b>\n"
+        f"💰 Balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 
@@ -323,20 +323,20 @@ async def cmd_bailout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if not msg.reply_to_message or not msg.reply_to_message.from_user:
         await update.message.reply_text(
-            "👮 ردّ على رسالة الشخص الذي تريد إخراجه من السجن واكتب /bailout"
+            "👮 Reply to the message of the person you want to bail out and type /bailout"
         )
         return
 
     target = msg.reply_to_message.from_user
     if target.id == user.id:
-        await update.message.reply_text("😅 استخدم /bail لإخراج نفسك!")
+        await update.message.reply_text("😅 Use /bail to bail yourself out!")
         return
 
     async with get_session() as session:
         jail = await get_jail(session, target.id)
         if not jail or not jail.is_active:
             await update.message.reply_text(
-                f"✅ {target.first_name} ليس في السجن!"
+                f"✅ {target.first_name} is not in jail!"
             )
             return
 
@@ -344,9 +344,9 @@ async def cmd_bailout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if wallet is None:
             current = await get_wallet(session, user.id)
             await update.message.reply_text(
-                f"❌ رصيدك غير كافٍ!\n"
-                f"الكفالة: <b>{fmt_coins(jail.bail_amount)} عملة</b>\n"
-                f"رصيدك: <b>{fmt_coins(current.coins)} عملة</b>",
+                f"❌ Insufficient balance!\n"
+                f"Bail: <b>{fmt_coins(jail.bail_amount)} coins</b>\n"
+                f"Balance: <b>{fmt_coins(current.coins)} coins</b>",
                 parse_mode="HTML",
             )
             return
@@ -355,9 +355,9 @@ async def cmd_bailout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     target_name = fmt_user(target.first_name, target.username)
     await update.message.reply_text(
-        f"🔓 <b>{user.first_name} أخرج {target_name} من السجن!</b>\n\n"
-        f"دفع كفالة: <b>{fmt_coins(jail.bail_amount)} عملة</b>\n"
-        f"💰 رصيده الآن: <b>{fmt_coins(wallet.coins)} عملة</b>",
+        f"🔓 <b>{user.first_name} bailed {target_name} out of jail!</b>\n\n"
+        f"Paid bail: <b>{fmt_coins(jail.bail_amount)} coins</b>\n"
+        f"💰 Your balance: <b>{fmt_coins(wallet.coins)} coins</b>",
         parse_mode="HTML",
     )
 

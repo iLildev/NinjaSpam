@@ -94,36 +94,36 @@ async def cmd_antiduplicate(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             cfg.enabled = False
             await session.commit()
             await update.message.reply_text(
-                "🔁 <b>Anti-Duplicate</b> — <b>مُعطَّل</b>",
+                "🔁 <b>Anti-Duplicate</b> — <b>Disabled</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
 
         if not args or args[0].lower() == "status":
-            state = "✅ مُفعَّل" if cfg.enabled else "❌ مُعطَّل"
+            state = "✅ Enabled" if cfg.enabled else "❌ Disabled"
             await update.message.reply_text(
-                f"🔁 <b>Anti-Duplicate — الحالة</b>\n"
+                f"🔁 <b>Anti-Duplicate — Status</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"الحالة: {state}\n"
-                f"🔢 الحد: <b>{cfg.threshold}</b> رسائل متطابقة\n"
-                f"⏳ النافذة: <b>{cfg.window_minutes}</b> دقيقة\n"
-                f"⚡ الإجراء: <b>{cfg.action}</b>\n\n"
-                f"<i>/antiduplicate &lt;N&gt; [دقائق] — تفعيل</i>",
+                f"Status: {state}\n"
+                f"🔢 Limit: <b>{cfg.threshold}</b> identical messages\n"
+                f"⏳ Window: <b>{cfg.window_minutes}</b> minutes\n"
+                f"⚡ Action: <b>{cfg.action}</b>\n\n"
+                f"<i>/antiduplicate <N> [minutes] — enable</i>",
                 parse_mode=ParseMode.HTML,
             )
             return
 
         if not args[0].isdigit():
             await update.message.reply_text(
-                "⚠️ الاستخدام: <code>/antiduplicate &lt;N&gt; [window_min] [action]</code>\n"
-                "مثال: <code>/antiduplicate 3 60 ban</code>",
+                "⚠️ Usage: <code>/antiduplicate <N> [window_min] [action]</code>\n"
+                "Example: <code>/antiduplicate 3 60 ban</code>",
                 parse_mode=ParseMode.HTML,
             )
             return
 
         threshold = int(args[0])
         if threshold < 2:
-            await update.message.reply_text("❌ الحد يجب أن يكون ≥ 2.")
+            await update.message.reply_text("❌ Limit must be ≥ 2.")
             return
 
         window = int(args[1]) if len(args) > 1 and args[1].isdigit() else cfg.window_minutes
@@ -136,10 +136,10 @@ async def cmd_antiduplicate(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await session.commit()
 
     await update.message.reply_text(
-        f"🔁 <b>Anti-Duplicate</b> — <b>مُفعَّل</b>\n"
+        f"🔁 <b>Anti-Duplicate</b> — <b>Enabled</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"🔢 الحد: <b>{threshold}</b> رسائل متطابقة في <b>{window}</b> دقيقة\n"
-        f"⚡ الإجراء عند التجاوز: <b>{action}</b>",
+        f"🔢 Limit: <b>{threshold}</b> identical messages in <b>{window}</b> minutes\n"
+        f"⚡ Action on limit reached: <b>{action}</b>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -200,9 +200,9 @@ async def check_duplicate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
             await context.bot.send_message(
                 chat.id,
-                f"🔁 <b>Spam مكرر!</b>\n"
+                f"🔁 <b>Duplicate Spam!</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"🚫 {mention} محظور — أرسل نفس الرسالة <b>{count + 1}</b> مرات.",
+                f"🚫 {mention} banned — sent same message <b>{count + 1}</b> times.",
                 parse_mode=ParseMode.HTML,
             )
         except (BadRequest, TelegramError) as e:
@@ -217,9 +217,9 @@ async def check_duplicate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             await context.bot.send_message(
                 chat.id,
-                f"🔁 <b>Spam مكرر!</b>\n"
+                f"🔁 <b>Duplicate Spam!</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"🔇 {mention} مكتوم — أرسل نفس الرسالة <b>{count + 1}</b> مرات.",
+                f"🔇 {mention} muted — sent same message <b>{count + 1}</b> times.",
                 parse_mode=ParseMode.HTML,
             )
         except (BadRequest, TelegramError) as e:
@@ -228,7 +228,7 @@ async def check_duplicate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:  # delete only
         await context.bot.send_message(
             chat.id,
-            f"🔁 {mention} يُرسل رسائل مكررة! تم حذف الرسالة.",
+            f"🔁 {mention} is sending duplicate messages! Message deleted.",
             parse_mode=ParseMode.HTML,
         )
 

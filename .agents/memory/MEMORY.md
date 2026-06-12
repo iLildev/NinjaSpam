@@ -1,0 +1,3 @@
+- [English-only enforcement](english-only.md) — all user-facing messages translated; 5 files keep Arabic intentionally (regex patterns, city lookup keys, ASCII art, quiz alt-answers)
+- [TD-001 DB migration](td001-inmemory-to-db.md) — chatbot/clean_blue/global_ignore in-memory state migrated to DB; Alembic migration applied
+- [fun_data location](fun-data-location.md) — fun_strings.py moved to core/fun_data.py; fun.py imports from there; eliminates startup WARNING

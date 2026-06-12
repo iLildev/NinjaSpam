@@ -1,10 +1,10 @@
 """
-core/game_wallet.py — عمليات المحفظة المشتركة لجميع إضافات الألعاب.
+core/game_wallet.py — Shared wallet operations for all game plugins.
 
-هذا الموديول مكتبة داخلية تستورد منها الإضافات بدلاً من الاستيراد
-من بعضها البعض (يمنع مشاكل ترتيب التحميل).
+This module is an internal library that plugins import from instead of importing
+from each other (prevents loading order issues).
 
-الواجهة:
+Interface:
   get_wallet(session, user_id)           → Wallet
   add_coins(session, user_id, amount)    → Wallet
   deduct_coins(session, user_id, amount) → Wallet | None
@@ -23,7 +23,7 @@ STARTING_COINS = 100
 
 
 async def get_wallet(session: AsyncSession, user_id: int) -> Wallet:
-    """إرجاع محفظة المستخدم — تُنشأ تلقائياً عند أول طلب."""
+    """Return user wallet — created automatically on first request."""
     result = await session.execute(select(Wallet).where(Wallet.user_id == user_id))
     wallet = result.scalar_one_or_none()
     if wallet is None:
@@ -34,7 +34,7 @@ async def get_wallet(session: AsyncSession, user_id: int) -> Wallet:
 
 
 async def add_coins(session: AsyncSession, user_id: int, amount: int) -> Wallet:
-    """أضف عملات لمحفظة المستخدم وأعد الكائن المحدَّث."""
+    """Add coins to user wallet and return the updated object."""
     wallet = await get_wallet(session, user_id)
     wallet.coins        += amount
     wallet.total_earned += amount
@@ -43,8 +43,8 @@ async def add_coins(session: AsyncSession, user_id: int, amount: int) -> Wallet:
 
 async def deduct_coins(session: AsyncSession, user_id: int, amount: int) -> Optional[Wallet]:
     """
-    اخصم عملات من محفظة المستخدم.
-    أعد None إذا كان الرصيد غير كافٍ (لا تُنفَّذ أي عملية خصم).
+    Deduct coins from user wallet.
+    Return None if balance is insufficient (no deduction performed).
     """
     wallet = await get_wallet(session, user_id)
     if wallet.coins < amount:

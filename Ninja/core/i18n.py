@@ -1,10 +1,10 @@
 """
-core/i18n.py — محرك التعريب (i18n) للبوت.
+core/i18n.py — Internationalization (i18n) engine for the bot.
 
-التصميم:
-- جميع النصوص موجودة في locales/strings.py كقاموس متداخل.
-- t(key, **kwargs) هي الواجهة العامة الوحيدة.
-- اللغة الوحيدة والافتراضية: العربية (ar).
+Design:
+- All strings are located in locales/strings.py as a nested dictionary.
+- t(key, **kwargs) is the only public interface.
+- Default language: English (en).
 """
 
 from __future__ import annotations
@@ -16,12 +16,12 @@ log = logging.getLogger(__name__)
 
 _catalogue: Optional[dict[str, dict[str, str]]] = None
 
-SUPPORTED_LANGUAGES: tuple[str, ...] = ("ar",)
-DEFAULT_LANG: str = "ar"
+SUPPORTED_LANGUAGES: tuple[str, ...] = ("en",)
+DEFAULT_LANG: str = "en"
 
 
 def _get_catalogue() -> dict[str, dict[str, str]]:
-    """تحميل كتالوج النصوص عند أول استخدام."""
+    """Load the string catalogue on first use."""
     global _catalogue
     if _catalogue is None:
         from locales.strings import STRINGS
@@ -31,21 +31,21 @@ def _get_catalogue() -> dict[str, dict[str, str]]:
 
 def t(key: str, lang: str = DEFAULT_LANG, **kwargs: object) -> str:
     """
-    إرجاع النص المترجم للمفتاح المعطى باللغة العربية.
+    Return the translated string for the given key.
 
-    إذا لم يُعثر على المفتاح يُعاد المفتاح نفسه كإشارة للمطوّر.
+    If the key is not found, the key itself is returned as a signal to the developer.
 
-    المعاملات:
-        key:     مفتاح النص المعرَّف في locales/strings.py.
-        lang:    مُهمَل (مبقى للتوافق) — اللغة دائماً العربية.
-        **kwargs: متغيرات تُستبدل بـ str.format_map.
+    Args:
+        key:     String key defined in locales/strings.py.
+        lang:    Target language (default: en).
+        **kwargs: Variables to be replaced via str.format_map.
 
-    المُخرج:
-        النص المنسَّق.
+    Returns:
+        The formatted string.
     """
     catalogue = _get_catalogue()
-    ar_strings = catalogue.get("ar", {})
-    template: str = ar_strings.get(key, key)
+    en_strings = catalogue.get("en", {})
+    template: str = en_strings.get(key, key)
 
     if not kwargs:
         return template
@@ -53,24 +53,24 @@ def t(key: str, lang: str = DEFAULT_LANG, **kwargs: object) -> str:
     try:
         return template.format_map(kwargs)
     except (KeyError, IndexError) as exc:
-        log.warning("خطأ في تنسيق i18n للمفتاح=%r: %s", key, exc)
+        log.warning("i18n formatting error for key=%r: %s", key, exc)
         return template
 
 
 async def get_chat_lang(chat_id: int) -> str:
-    """إرجاع رمز اللغة للمجموعة — دائماً 'ar'."""
+    """Return the language code for the group — always 'en'."""
     return DEFAULT_LANG
 
 
 def invalidate_lang_cache(chat_id: int) -> None:
-    """إبطال ذاكرة التخزين المؤقت للغة (لا تأثير — اللغة ثابتة)."""
+    """Invalidate the language cache (no effect — language is fixed)."""
     pass
 
 
 async def set_chat_lang(chat_id: int, lang_code: str) -> None:
     """
-    حفظ تفضيل اللغة للمجموعة.
-    اللغة الوحيدة المقبولة هي 'ar'.
+    Save language preference for the group.
+    Only 'en' is accepted.
     """
     if lang_code not in SUPPORTED_LANGUAGES:
-        raise ValueError(f"اللغة غير مدعومة: {lang_code!r}")
+        raise ValueError(f"Language not supported: {lang_code!r}")

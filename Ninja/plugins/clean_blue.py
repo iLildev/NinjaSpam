@@ -16,10 +16,9 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from core.helpers.chat_status import user_admin
+from db.repositories import settings as settings_repo
 
 logger = logging.getLogger(__name__)
-
-_ENABLED_CHATS: set[int] = set()
 
 
 @user_admin
@@ -27,17 +26,18 @@ async def cleanblue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
     args = context.args
     if not args:
-        state = "on" if chat.id in _ENABLED_CHATS else "off"
+        settings = await settings_repo.get_or_create(chat.id)
+        state = "on" if settings.clean_blue_enabled else "off"
         await update.effective_message.reply_text(
             f"Bluetext cleaning is currently <b>{state}</b>.", parse_mode="HTML"
         )
         return
     val = args[0].lower()
     if val in ("on", "yes"):
-        _ENABLED_CHATS.add(chat.id)
+        await settings_repo.update(chat.id, clean_blue_enabled=True)
         await update.effective_message.reply_text("✅ Bluetext cleaning enabled.")
     elif val in ("off", "no"):
-        _ENABLED_CHATS.discard(chat.id)
+        await settings_repo.update(chat.id, clean_blue_enabled=False)
         await update.effective_message.reply_text("❌ Bluetext cleaning disabled.")
     else:
         await update.effective_message.reply_text("Use: /cleanblue on|off")
@@ -46,7 +46,9 @@ async def cleanblue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def check_blue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     chat = update.effective_chat
-    if chat.id not in _ENABLED_CHATS:
+    
+    settings = await settings_repo.get(chat.id)
+    if not settings or not settings.clean_blue_enabled:
         return
     if not message.text:
         return

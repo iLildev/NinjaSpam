@@ -2,12 +2,12 @@
 economy/models.py — ORM models for the virtual economy system.
 
 Tables:
-  eco_bank_accounts  — حسابات بنكية وهمية
-  eco_stats          — إحصائيات المستخدم (cooldowns, سرقة)
-  eco_loans          — سجلات الديون
-  eco_jail           — سجل المعتقلين
-  eco_heist_sessions — جلسات السطو الجماعي
-  eco_heist_participants — المشاركون في السطو
+  eco_bank_accounts  — Virtual bank accounts
+  eco_stats          — User stats (cooldowns, stealing)
+  eco_loans          — Debt records
+  eco_jail           — Inmate records
+  eco_heist_sessions — Group heist sessions
+  eco_heist_participants — Heist participants
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def _utcnow() -> datetime:
 # ---------------------------------------------------------------------------
 
 class BankAccount(Base):
-    """حساب بنكي وهمي — رقم الحساب فريد عالمياً."""
+    """Virtual bank account — Account number is globally unique."""
 
     __tablename__ = "eco_bank_accounts"
 
@@ -51,7 +51,7 @@ class BankAccount(Base):
 # ---------------------------------------------------------------------------
 
 class EconomyStats(Base):
-    """إحصائيات الاقتصاد لكل مستخدم — cooldowns وإجمالي مسروق."""
+    """Economy stats for each user — cooldowns and total stolen."""
 
     __tablename__ = "eco_stats"
 
@@ -68,29 +68,30 @@ class EconomyStats(Base):
 
 
 # ---------------------------------------------------------------------------
-# LoanRecord  — نظام الدين
+# LoanRecord  — Debt System
 # ---------------------------------------------------------------------------
 
 class LoanRecord(Base):
     """
-    سجل القرض النشط للمستخدم.
-    لا يُسمح بأكثر من قرض واحد في وقت واحد.
-    الفائدة 10% — الأجل 24 ساعة.
+    Active loan record for the user.
+    Only one loan allowed at a time.
+    10% interest — 24 hour term.
     """
 
     __tablename__ = "eco_loans"
 
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    principal: Mapped[int] = mapped_column(Integer, nullable=False, comment="المبلغ المقترض")
+    principal: Mapped[int] = mapped_column(Integer, nullable=False, comment="Amount borrowed")
     interest_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.10)
     total_due: Mapped[int] = mapped_column(Integer, nullable=False, comment="principal * (1 + interest)")
     amount_repaid: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     deadline: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
-        comment="موعد السداد — 24 ساعة من وقت الاقتراض",
+        comment="Repayment deadline — 24 hours from borrowing",
     )
     is_repaid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
 
     @property
     def remaining(self) -> int:
@@ -102,13 +103,13 @@ class LoanRecord(Base):
 
 
 # ---------------------------------------------------------------------------
-# JailRecord  — نظام السجن
+# JailRecord  — Jail System
 # ---------------------------------------------------------------------------
 
 class JailRecord(Base):
     """
-    سجل الاعتقال النشط للمستخدم.
-    السجين لا يستطيع استخدام أوامر الكسب حتى يدفع الكفالة أو تنتهي المدة.
+    Active jail record for the user.
+    Prisoner cannot use earning commands until bail is paid or time expires.
     """
 
     __tablename__ = "eco_jail"
@@ -119,7 +120,7 @@ class JailRecord(Base):
     jailed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     auto_release_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
-        comment="يُطلق سراحه تلقائياً بعد هذا الوقت حتى لو لم يدفع الكفالة",
+        comment="Automatic release after this time even if bail not paid",
     )
     is_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
@@ -136,15 +137,15 @@ class JailRecord(Base):
         remaining = self.auto_release_at - _utcnow()
         total = max(0, int(remaining.total_seconds()))
         mins, secs = divmod(total, 60)
-        return f"{mins}د {secs}ث"
+        return f"{mins}m {secs}s"
 
 
 # ---------------------------------------------------------------------------
-# HeistSession  — جلسة السطو الجماعي
+# HeistSession  — Group Heist Session
 # ---------------------------------------------------------------------------
 
 class HeistSession(Base):
-    """جلسة سطو جماعي نشطة في مجموعة."""
+    """Active group heist session in a group."""
 
     __tablename__ = "eco_heist_sessions"
 
@@ -165,11 +166,11 @@ class HeistSession(Base):
 
 
 # ---------------------------------------------------------------------------
-# HeistParticipant  — مشاركو السطو
+# HeistParticipant  — Heist Participants
 # ---------------------------------------------------------------------------
 
 class HeistParticipant(Base):
-    """مشارك في جلسة سطو."""
+    """Participant in a heist session."""
 
     __tablename__ = "eco_heist_participants"
     __table_args__ = (UniqueConstraint("session_id", "user_id", name="uq_heist_user"),)

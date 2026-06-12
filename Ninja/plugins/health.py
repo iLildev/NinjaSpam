@@ -269,7 +269,8 @@ async def health_cmd(
 
     text = (
         f"<b>📊 Group Health Score</b>\n"
-        f"<b>{chat.title}</b>\n\n"
+        f"<b>{chat.title}</b>\n"
+        f"━━━━━━━━━━━━━━━\n\n"
         f"<code>{gauge}</code>\n"
         f"Rating: {rating}\n\n"
         f"<b>━━ Component Breakdown ━━</b>\n\n"

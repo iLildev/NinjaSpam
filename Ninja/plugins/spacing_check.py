@@ -110,8 +110,8 @@ async def cmd_spacingcheck(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             cfg.enabled = True
             await session.commit()
             await update.message.reply_text(
-                f"🔤 <b>Spacing Check</b> — <b>مُفعَّل</b>\n"
-                f"الإجراء: <b>{cfg.action}</b>",
+                f"🔤 <b>Spacing Check</b> — <b>Enabled</b>\n"
+                f"Action: <b>{cfg.action}</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -120,7 +120,7 @@ async def cmd_spacingcheck(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             cfg.enabled = False
             await session.commit()
             await update.message.reply_text(
-                "🔤 <b>Spacing Check</b> — <b>مُعطَّل</b>",
+                "🔤 <b>Spacing Check</b> — <b>Disabled</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -128,24 +128,24 @@ async def cmd_spacingcheck(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if args and args[0].lower() == "action" and len(args) > 1:
             act = args[1].lower()
             if act not in ("delete", "warn", "ban"):
-                await update.message.reply_text("❌ الإجراءات المتاحة: delete | warn | ban")
+                await update.message.reply_text("❌ Available actions: delete | warn | ban")
                 return
             cfg.action = act
             await session.commit()
             await update.message.reply_text(
-                f"✅ الإجراء الجديد: <b>{act}</b>",
+                f"✅ New action: <b>{act}</b>",
                 parse_mode=ParseMode.HTML,
             )
             return
 
         # status
-        state = "✅ مُفعَّل" if cfg.enabled else "❌ مُعطَّل"
+        state = "✅ Enabled" if cfg.enabled else "❌ Disabled"
         await update.message.reply_text(
-            f"🔤 <b>Spacing Check — الحالة</b>\n"
+            f"🔤 <b>Spacing Check — Status</b>\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"الحالة: {state}\n"
-            f"⚡ الإجراء: <b>{cfg.action}</b>\n\n"
-            f"<i>يكتشف الرسائل ذات المسافات الزائدة بين الحروف (h e l l o) للتحايل على الفلاتر</i>",
+            f"Status: {state}\n"
+            f"⚡ Action: <b>{cfg.action}</b>\n\n"
+            f"<i>Detects messages with excessive spaces between characters (h e l l o) to bypass filters.</i>",
             parse_mode=ParseMode.HTML,
         )
 
@@ -189,7 +189,7 @@ async def check_spacing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
             await context.bot.send_message(
                 chat.id,
-                f"🔤 {mention} محظور — رسالة مشبوهة (مسافات غير طبيعية).",
+                f"🔤 {mention} banned — suspicious message (abnormal spacing).",
                 parse_mode=ParseMode.HTML,
             )
         except (BadRequest, TelegramError) as e:
@@ -198,18 +198,18 @@ async def check_spacing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     elif action == "warn":
         try:
             from plugins.warns import warn_user
-            await warn_user(chat.id, user.id, context.bot, "رسالة ذات مسافات غير طبيعية (محاولة تحايل)")
+            await warn_user(chat.id, user.id, context.bot, "Message with abnormal spacing (evasion attempt)")
         except Exception:
             await context.bot.send_message(
                 chat.id,
-                f"⚠️ تحذير لـ {mention}: رسالة مشبوهة (مسافات غير طبيعية).",
+                f"⚠️ Warning for {mention}: suspicious message (abnormal spacing).",
                 parse_mode=ParseMode.HTML,
             )
 
     else:
         await context.bot.send_message(
             chat.id,
-            f"🔤 رسالة {mention} محذوفة — مسافات غير طبيعية (محاولة تحايل).",
+            f"🔤 Message from {mention} deleted — abnormal spacing (evasion attempt).",
             parse_mode=ParseMode.HTML,
         )
 

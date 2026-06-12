@@ -1,15 +1,15 @@
 """
-plugins/bans.py — الحظر والطرد وإلغاء الحظر.
+plugins/bans.py — Ban, Kick, and Unban system.
 
-الأوامر:
-  /ban   [مستخدم] [سبب]         — حظر دائم.
-  /ban   -clean [مستخدم] [سبب] — حظر + حذف رسائله الأخيرة.
-  /tban  [مستخدم] <مدة> [سبب]  — حظر مؤقت (10m / 2h / 3d).
-  /kick  [مستخدم] [سبب]        — طرد (يمكنه العودة).
-  /kickme                        — طرد الذات.
-  /unban [مستخدم]               — رفع الحظر.
+Commands:
+  /ban   [user] [reason]         — Permanent ban.
+  /ban   -clean [user] [reason] — Ban + delete recent messages.
+  /tban  [user] <duration> [reason]  — Temporary ban (10m / 2h / 3d).
+  /kick  [user] [reason]        — Kick (can rejoin).
+  /kickme                        — Kick self.
+  /unban [user]               — Remove ban.
 
-جميع الإجراءات تُسجَّل في قناة السجلات عبر @loggable.
+All actions are logged in the log channel via @loggable.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _mention(user_id: int, update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """أرجع HTML mention للمستخدم."""
+    """Return HTML mention for the user."""
     msg = update.effective_message
     if msg and msg.reply_to_message and msg.reply_to_message.from_user:
         u = msg.reply_to_message.from_user
@@ -73,7 +73,7 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[st
         await message.reply_text(t("ban_admin"))
         return None
     if user_id == context.bot.id:
-        await message.reply_text("🙃 لا.")
+        await message.reply_text("🙃 No.")
         return None
 
     clean_mode = bool(
@@ -89,7 +89,7 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[st
         )
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل الحظر: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Ban failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -97,21 +97,21 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[st
     await bans_repo.record_ban(chat.id, user_id, user.id, reason or "")
 
     mention = await _mention(user_id, update, context)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
-    clean_line = "\n🧹 <i>تم حذف رسائله الأخيرة.</i>" if clean_mode else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
+    clean_line = "\n🧹 <i>Recent messages deleted.</i>" if clean_mode else ""
 
     await message.reply_html(
-        f"🔨 <b>تم الحظر</b>\n"
+        f"🔨 <b>User Banned</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}{clean_line}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"{'#CLEANBAN' if clean_mode else '#BAN'}\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
         f"{reason_line}{clean_line}"
     )
 
@@ -128,7 +128,7 @@ async def temp_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Option
 
     if not user_id:
         await message.reply_text(
-            "⚠️ حدّد المستخدم والمدة:\n<code>/tban @username 2h [سبب]</code>",
+            "⚠️ Specify user and duration:\n<code>/tban @username 2h [reason]</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -137,7 +137,7 @@ async def temp_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Option
         return None
     if not args_text:
         await message.reply_text(
-            "⚠️ أضف المدة بعد اسم المستخدم:\n<code>/tban @username 2h [سبب]</code>",
+            "⚠️ Add duration after username:\n<code>/tban @username 2h [reason]</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -149,8 +149,8 @@ async def temp_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Option
 
     if until is None:
         await message.reply_text(
-            f"⚠️ مدة غير صحيحة <code>{html.escape(time_str)}</code>. "
-            f"استخدم: <code>10m</code>، <code>2h</code>، أو <code>3d</code>.",
+            f"⚠️ Invalid duration <code>{html.escape(time_str)}</code>. "
+            f"Use: <code>10m</code>, <code>2h</code>, or <code>3d</code>.",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -161,28 +161,28 @@ async def temp_ban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Option
         )
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل الحظر المؤقت: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Temporary ban failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     mention = await _mention(user_id, update, context)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_html(
-        f"⏳ <b>حظر مؤقت</b>\n"
+        f"⏳ <b>Temporary Ban</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"⏱ <b>المدة:</b> <code>{html.escape(time_str)}</code>\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"⏱ <b>Duration:</b> <code>{html.escape(time_str)}</code>\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#TEMP_BAN\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)\n"
-        f"<b>المدة:</b> {html.escape(time_str)}"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)\n"
+        f"<b>Duration:</b> {html.escape(time_str)}"
         f"{reason_line}"
     )
 
@@ -204,7 +204,7 @@ async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[s
         await message.reply_text(t("ban_admin"))
         return None
     if user_id == context.bot.id:
-        await message.reply_text("🙃 لا.")
+        await message.reply_text("🙃 No.")
         return None
 
     try:
@@ -212,26 +212,26 @@ async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[s
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل الطرد: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Kick failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
 
     mention = await _mention(user_id, update, context)
-    reason_line = f"\n<b>السبب:</b> {html.escape(reason)}" if reason else ""
+    reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
 
     await message.reply_html(
-        f"👢 <b>تم الطرد</b>\n"
+        f"👢 <b>User Kicked</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
         f"{reason_line}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#KICK\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
         f"{reason_line}"
     )
 
@@ -243,15 +243,15 @@ async def kickme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not user:
         return
     if await is_user_admin(chat, user.id):
-        await message.reply_text("🛡 المشرفون يغادرون بأنفسهم.")
+        await message.reply_text("🛡 Admins leave on their own.")
         return
     try:
         await context.bot.ban_chat_member(chat_id=chat.id, user_id=user.id)
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user.id)
-        await message.reply_text("👋 تم. يمكنك العودة عبر رابط الدعوة.")
+        await message.reply_text("👋 Done. You can return via invite link.")
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ تعذّر الطرد: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Could not kick: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
 
@@ -270,14 +270,14 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[
         await message.reply_text(t("ban_missing_target"))
         return None
     if await is_user_in_chat(chat, user_id):
-        await message.reply_text("ℹ️ المستخدم موجود في المجموعة بالفعل.")
+        await message.reply_text("ℹ️ User is already in the group.")
         return None
 
     try:
         await context.bot.unban_chat_member(chat_id=chat.id, user_id=user_id)
     except BadRequest as exc:
         await message.reply_text(
-            f"⚠️ فشل رفع الحظر: <code>{html.escape(exc.message)}</code>",
+            f"⚠️ Unban failed: <code>{html.escape(exc.message)}</code>",
             parse_mode=ParseMode.HTML,
         )
         return None
@@ -286,16 +286,16 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[
     mention = await _mention(user_id, update, context)
 
     await message.reply_html(
-        f"✅ <b>رُفع الحظر</b>\n"
+        f"✅ <b>Unbanned</b>\n"
         f"━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {mention}\n"
-        f"👮 <b>بواسطة:</b> {user.mention_html()}"
+        f"👤 <b>User:</b> {mention}\n"
+        f"👮 <b>By:</b> {user.mention_html()}"
     )
     return (
         f"<b>{html.escape(chat.title or '')}:</b>\n"
         f"#UNBAN\n"
-        f"<b>المشرف:</b> {user.mention_html()}\n"
-        f"<b>المستخدم:</b> {mention} (<code>{user_id}</code>)"
+        f"<b>Admin:</b> {user.mention_html()}\n"
+        f"<b>User:</b> {mention} (<code>{user_id}</code>)"
     )
 
 

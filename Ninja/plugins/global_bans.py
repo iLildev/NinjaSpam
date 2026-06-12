@@ -109,7 +109,7 @@ async def gban(
         return
 
     if user_id == context.bot.id:
-        await message.reply_text("I won't ban myself globally.")
+        await message.reply_text("🙃 I won't ban myself globally.")
         return
 
     if _is_protected(user_id):

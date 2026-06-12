@@ -1,9 +1,9 @@
 """
-plugins/fuzzy_commands.py — مطابقة ضبابية لأوامر البوت.
+plugins/fuzzy_commands.py — Fuzzy matching for bot commands.
 
-المبدأ: قائمة بالأسماء العربية الصحيحة للأوامر فقط.
-الخوارزمية تحسب التشابه وتقترح الأمر الصحيح عند نسبة ≥ 90%.
-لا توجد قوائم بالأخطاء المحتملة — المرونة تأتي من الخوارزمية.
+Principle: A list of correct English command names.
+The algorithm calculates similarity and suggests the correct command at ≥ 90% ratio.
+No lists of potential errors — flexibility comes from the algorithm.
 """
 
 from __future__ import annotations
@@ -21,100 +21,100 @@ from core.helpers.fuzzy import levenshtein, normalize
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# الأوامر — (الاسم العربي الصحيح، الأمر، للمشرفين فقط)
+# Commands — (Display Label, Command, Admin Only)
 # ---------------------------------------------------------------------------
 
 COMMANDS: List[Tuple[str, str, bool]] = [
 
-    # ── الإعدادات والمساعدة ─────────────────────────────────────────────────
-    ("الإعدادات",             "/settings",       True),
-    ("المساعدة",              "/help",            False),
+    # ── Settings and Help ──────────────────────────────────────────────────
+    ("Settings",             "/settings",       True),
+    ("Help",                 "/help",            False),
 
-    # ── الإدارة ─────────────────────────────────────────────────────────────
-    ("حظر",                   "/ban",             True),
-    ("حظر مؤقت",             "/tban",            True),
-    ("رفع الحظر",            "/unban",           True),
-    ("طرد",                   "/kick",            True),
-    ("كتم",                   "/mute",            True),
-    ("كتم مؤقت",             "/tmute",           True),
-    ("رفع الكتم",            "/unmute",          True),
-    ("تحذير",                "/warn",            True),
-    ("عرض التحذيرات",       "/warns",           False),
-    ("مسح التحذيرات",       "/resetwarn",       True),
-    ("قفل المجموعة",         "/lock",            True),
-    ("فتح المجموعة",         "/unlock",          True),
-    ("تثبيت رسالة",         "/pin",             True),
-    ("إلغاء التثبيت",       "/unpin",           True),
-    ("ترقية لمشرف",          "/promote",         True),
-    ("إلغاء الترقية",       "/demote",          True),
-    ("قائمة المشرفين",      "/adminlist",       False),
-    ("حذف الرسائل",          "/purge",           True),
-    ("الوضع البطيء",         "/slowmode",        True),
+    # ── Administration ───────────────────────────────────────────────────────
+    ("Ban",                  "/ban",             True),
+    ("Temp Ban",             "/tban",            True),
+    ("Unban",                "/unban",           True),
+    ("Kick",                 "/kick",            True),
+    ("Mute",                 "/mute",            True),
+    ("Temp Mute",            "/tmute",           True),
+    ("Unmute",               "/unmute",          True),
+    ("Warn",                 "/warn",            True),
+    ("View Warns",           "/warns",           False),
+    ("Reset Warns",          "/resetwarn",       True),
+    ("Lock Group",           "/lock",            True),
+    ("Unlock Group",         "/unlock",          True),
+    ("Pin Message",          "/pin",             True),
+    ("Unpin",                "/unpin",           True),
+    ("Promote",              "/promote",         True),
+    ("Demote",               "/demote",          True),
+    ("Admin List",           "/adminlist",       False),
+    ("Purge",                "/purge",           True),
+    ("Slowmode",             "/slowmode",        True),
 
-    # ── القواعد والمحتوى ────────────────────────────────────────────────────
-    ("قواعد المجموعة",      "/rules",           False),
-    ("تعيين القواعد",       "/setrules",        True),
-    ("رسالة الترحيب",      "/setwelcome",      True),
-    ("رسالة الوداع",        "/setgoodbye",      True),
-    ("قناة السجلات",        "/setlog",          True),
-    ("فلاتر التحذير",       "/warnlist",        True),
-    ("فلاتر الرسائل",       "/filters",         True),
-    ("الملاحظات المحفوظة",  "/notes",           False),
-    ("إعدادات الكابتشا",    "/captcha",         True),
+    # ── Rules and Content ───────────────────────────────────────────────────
+    ("Group Rules",          "/rules",           False),
+    ("Set Rules",            "/setrules",        True),
+    ("Welcome Message",      "/setwelcome",      True),
+    ("Goodbye Message",      "/setgoodbye",      True),
+    ("Log Channel",          "/setlog",          True),
+    ("Warn Filters",         "/warnlist",        True),
+    ("Message Filters",      "/filters",         True),
+    ("Saved Notes",          "/notes",           False),
+    ("Captcha Settings",     "/captcha",         True),
 
-    # ── الحماية ─────────────────────────────────────────────────────────────
-    ("حد الفيضان",           "/setflood",        True),
-    ("مكافحة الروابط",      "/antilinks",       True),
-    ("الحظر العالمي CAS",   "/cas",             False),
-    ("حظر عالمي",            "/gban",            True),
-    ("الاتحادات",            "/federation",      True),
-    ("مكافحة الغارات",      "/antiraid",        True),
+    # ── Protection ─────────────────────────────────────────────────────────
+    ("Flood Limit",          "/setflood",        True),
+    ("Anti-Links",           "/antilinks",       True),
+    ("CAS Global Ban",       "/cas",             False),
+    ("Global Ban",           "/gban",            True),
+    ("Federations",          "/federation",      True),
+    ("Anti-Raid",            "/antiraid",        True),
 
-    # ── الأدوات ─────────────────────────────────────────────────────────────
-    ("إحصائيات المجموعة",   "/stats",           False),
-    ("معلومات المجموعة",    "/chatinfo",        False),
-    ("معلوماتي الشخصية",   "/userinfo",        False),
-    ("الوقت الحالي",        "/time",            False),
-    ("ترجمة النص",           "/tl",              False),
-    ("الآلة الحاسبة",       "/calc",            False),
-    ("بحث في ويكيبيديا",   "/wiki",            False),
-    ("الإبلاغ عن مستخدم",  "/report",          False),
-    ("نسخ احتياطي",          "/backup",          True),
-    ("البوت شغال؟",          "/alive",           False),
+    # ── Tools ──────────────────────────────────────────────────────────────
+    ("Group Stats",          "/stats",           False),
+    ("Group Info",           "/chatinfo",        False),
+    ("User Info",            "/userinfo",        False),
+    ("Current Time",         "/time",            False),
+    ("Translate",            "/tl",              False),
+    ("Calculator",           "/calc",            False),
+    ("Wikipedia Search",     "/wiki",            False),
+    ("Report User",          "/report",          False),
+    ("Backup",               "/backup",          True),
+    ("Alive?",               "/alive",           False),
 
-    # ── الاقتصاد ────────────────────────────────────────────────────────────
-    ("رصيدي في البنك",      "/balance",         False),
-    ("المكافأة اليومية",    "/daily",           False),
-    ("تحويل رصيد",          "/transfer",        False),
-    ("قائمة الأثرياء",      "/richlist",        False),
-    ("سرقة الرصيد",         "/steal",           False),
-    ("فتح حساب بنكي",      "/openbank",        False),
-    ("طلب قرض",             "/loan",            False),
-    ("سداد القرض",          "/repay",           False),
-    ("استثمار الرصيد",      "/invest",          False),
-    ("الراتب الأسبوعي",     "/salary",          False),
-    ("ترتيب اللاعبين",      "/top",             False),
+    # ── Economy ────────────────────────────────────────────────────────────
+    ("Bank Balance",         "/balance",         False),
+    ("Daily Reward",         "/daily",           False),
+    ("Transfer",             "/transfer",        False),
+    ("Rich List",            "/richlist",        False),
+    ("Steal",                "/steal",           False),
+    ("Open Bank Account",    "/openbank",        False),
+    ("Request Loan",         "/loan",            False),
+    ("Repay Loan",           "/repay",           False),
+    ("Invest",               "/invest",          False),
+    ("Weekly Salary",        "/salary",          False),
+    ("Top Players",          "/top",             False),
 
-    # ── الألعاب ─────────────────────────────────────────────────────────────
-    ("لعبة النينجا",        "/ninja",           False),
-    ("لعبة المزرعة",        "/farm",            False),
-    ("لعبة القلعة",         "/castle",          False),
-    ("إنشاء القلعة",        "/create_castle",   False),
-    ("إنشاء المزرعة",       "/create_farm",     False),
-    ("ترقية القلعة",        "/upgrade_castle",  False),
-    ("ترقية المزرعة",       "/upgrade_farm",    False),
-    ("شراء الجيش",          "/buy_army",        False),
-    ("بدء المعركة",         "/start_battle",    False),
-    ("إنقاذ عضو",           "/rescue",          False),
-    ("تنفيذ اغتيال",        "/assassinate",     False),
-    ("مسابقة أسئلة",        "/quiz",            False),
-    ("رمي النرد",            "/roll",            False),
-    ("تجربة الحظ",          "/luck",            False),
-    ("تبادل تجاري",         "/trade",           False),
+    # ── Games ──────────────────────────────────────────────────────────────
+    ("Ninja Game",           "/ninja",           False),
+    ("Farm Game",            "/farm",            False),
+    ("Castle Game",          "/castle",          False),
+    ("Create Castle",        "/create_castle",   False),
+    ("Create Farm",          "/create_farm",     False),
+    ("Upgrade Castle",       "/upgrade_castle",  False),
+    ("Upgrade Farm",         "/upgrade_farm",    False),
+    ("Buy Army",             "/buy_army",        False),
+    ("Start Battle",         "/start_battle",    False),
+    ("Rescue Member",        "/rescue",          False),
+    ("Assassinate",          "/assassinate",     False),
+    ("Quiz",                 "/quiz",            False),
+    ("Roll Dice",            "/roll",            False),
+    ("Try Luck",             "/luck",            False),
+    ("Trade",                "/trade",           False),
 ]
 
 # ---------------------------------------------------------------------------
-# البحث — SequenceMatcher + Levenshtein
+# Search — SequenceMatcher + Levenshtein
 # ---------------------------------------------------------------------------
 
 _POOL: List[Tuple[str, int]] = [
@@ -127,8 +127,8 @@ _MAX_LEN   = 30
 
 def _match(text: str) -> Optional[Tuple[int, float]]:
     """
-    أرجع (فهرس الأمر، النسبة) إذا تجاوز التشابه 90%
-    أو إذا كان الفرق حرفاً واحداً فقط (Levenshtein = 1).
+    Return (command index, ratio) if similarity exceeds 90%
+    or if the difference is only one character (Levenshtein = 1).
     """
     norm = normalize(text)
     if not norm:
@@ -152,7 +152,7 @@ def _match(text: str) -> Optional[Tuple[int, float]]:
 
 
 # ---------------------------------------------------------------------------
-# المعالج
+# Handler
 # ---------------------------------------------------------------------------
 
 async def _handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -178,7 +178,7 @@ async def _handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     base = command.split()[0]
     await message.reply_html(
-        f"🔍 هل تقصد <b>{label}</b>؟\n"
+        f"🔍 Did you mean <b>{label}</b>?\n"
         f"<code>{command}</code>",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"▶️ {base}", switch_inline_query_current_chat=base)
@@ -188,7 +188,7 @@ async def _handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ---------------------------------------------------------------------------
-# تسجيل
+# Register
 # ---------------------------------------------------------------------------
 
 async def register(application: Application) -> None:

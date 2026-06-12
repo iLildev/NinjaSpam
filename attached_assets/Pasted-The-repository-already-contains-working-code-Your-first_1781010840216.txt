@@ -1,0 +1,436 @@
+The repository already contains working code.
+
+Your first objective is NOT improvement.
+Your first objective is understanding.
+
+Execute only PHASE 1 and PHASE 2.
+
+Do not implement features.
+Do not refactor code.
+Do not redesign UX.
+Do not optimize anything.
+Do not modify project architecture.
+
+Produce documentation first.
+
+If you discover critical issues, document them but do not fix them.
+
+Stop immediately after completing PHASE 1 and PHASE 2.
+
+---
+
+CRITICAL OPERATIONAL RULES (ANTI-HALLUCINATION)
+
+- If the repository is large, generate documentation incrementally and prioritize accuracy over completeness.
+- NEVER invent undocumented systems.
+- NEVER infer functionality that cannot be verified from accessible code.
+- If information cannot be confirmed directly from the repository, explicitly mark it as "Not Found / Unknown".
+- Analyze only files, services, databases, environments, integrations, workflows, and systems that are directly accessible to you.
+- Do not make assumptions about infrastructure, deployment environments, external APIs, third-party services, databases, secrets, integrations, or cloud resources that cannot be directly inspected.
+- If a dependency, integration, service, or environment is referenced but cannot be inspected, document it as:
+  "Referenced but not verifiable".
+- If evidence is insufficient, prefer uncertainty over speculation.
+- Documentation must describe reality, not assumptions.
+
+---
+
+AFTER COMPLETING PHASE 1 AND PHASE 2
+
+Provide:
+
+1. Repository architecture summary.
+2. List of orphaned systems.
+3. List of UX inconsistencies.
+4. List of duplicate or overlapping systems.
+5. List of technical debt observations.
+6. List of critical risks discovered.
+7. All generated documentation files inside the /docs directory.
+
+Then stop and wait for review.
+
+Do not continue to any later phase.
+
+---
+
+PRIMARY MISSION
+
+You are not acting as a programmer for this task.
+
+You are acting as:
+
+- Senior Software Architect
+- Senior Product Architect
+- Senior Telegram Bot Consultant
+- Senior UX Designer
+- Open Source Maintainer
+- Technical Documentation Specialist
+- Knowledge Management Architect
+- Long-Term Project Steward
+
+Your first responsibility is NOT writing code.
+
+Your first responsibility is preserving knowledge.
+
+Your mission is to transform this repository into a self-explanatory, self-documenting, and future-proof project that can survive:
+
+- New developers
+- New AI agents
+- New maintainers
+- Lost conversations
+- Lost accounts
+- Long periods of inactivity
+- Years of future development
+
+Any future contributor should be able to clone this repository and immediately understand:
+
+- What this project is
+- Why it exists
+- How it works
+- What has been completed
+- What remains unfinished
+- What architectural decisions were made
+- What lessons were learned
+- What risks currently exist
+- What should be done next
+- Where the project is heading
+
+No prior context should ever be required.
+
+---
+
+NON-NEGOTIABLE RULES
+
+Before documentation is completed, DO NOT:
+
+- Add features
+- Remove features
+- Rewrite systems
+- Refactor major code
+- Optimize performance
+- Redesign UX
+- Modify architecture
+
+Documentation comes first.
+
+Understanding comes first.
+
+Preservation comes first.
+
+---
+
+PHASE 1 — COMPLETE PROJECT AUDIT
+
+Analyze the entire accessible repository.
+
+Inspect and document only what actually exists.
+
+Document:
+
+- Commands
+- Menus
+- Buttons
+- Callback handlers
+- States
+- Conversations
+- User journeys
+- Administrator journeys
+- Protection systems (if present)
+- Bayesian learning systems (if present)
+- Moderation systems (if present)
+- Statistics systems (if present)
+- Configuration systems
+- Database structure
+- Internal modules
+- Dependencies
+- Current architecture
+
+Identify and isolate:
+
+- Existing strengths
+- Existing weaknesses
+- UX inconsistencies
+- Technical debt
+- Duplicate systems
+- Hidden complexity
+- Areas of confusion
+- Orphaned systems
+
+Definition of orphaned systems:
+
+- Features unreachable from the UI
+- Unused menus
+- Undocumented commands
+- Dead code
+- Duplicate implementations
+- Legacy workflows
+- Unreferenced modules
+
+Do not modify code.
+
+Only understand and document.
+
+---
+
+PHASE 2 — CREATE THE PROJECT MEMORY SYSTEM
+
+Create:
+
+/docs
+
+Generate the following documentation files.
+
+---
+
+1. PROJECT_VISION.md
+
+Document:
+
+- Project purpose
+- Target users
+- Core philosophy
+- Product goals
+- Long-term mission
+- Success criteria
+
+Answer:
+
+Why does this project exist?
+
+---
+
+2. DESIGN_PRINCIPLES.md
+
+Document the timeless principles guiding the project.
+
+Examples:
+
+- Clarity over Feature Density
+- Consistency over Cleverness
+- Direct Interaction over Manual Commands
+- One Logical Home per Feature
+- Maintainability over Complexity
+
+These principles should remain valid even if implementation changes.
+
+Answer:
+
+What beliefs guide this project?
+
+---
+
+3. ARCHITECTURE.md
+
+Document:
+
+- System architecture
+- Major modules
+- Module relationships
+- Data flow
+- Component responsibilities
+- Current structure
+
+Answer:
+
+How does this project work?
+
+---
+
+4. BOT_UX_RULES.md
+
+This file becomes the UX constitution.
+
+Document:
+
+- Navigation rules
+- Menu rules
+- Button rules
+- Message editing rules
+- Naming conventions
+- User interaction standards
+- Feature placement standards
+- Future integration standards
+
+Mandatory principles:
+
+- Every menu should have a clear Back action
+- Similar actions should behave consistently
+- Message editing should be preferred whenever practical
+- Buttons should perform actions directly whenever possible
+- Users should not be forced to use manual commands unnecessarily
+- Every feature should have one logical home
+- The interface should feel like one product
+
+Answer:
+
+How should UX remain consistent?
+
+---
+
+5. MENU_TREE.md
+
+Generate a complete hierarchical menu map.
+
+Document:
+
+- Every menu
+- Every submenu
+- Every navigation path
+- Parent-child relationships
+
+Answer:
+
+How does a user move through the system?
+
+---
+
+6. FEATURES.md
+
+Document every feature.
+
+For each feature include:
+
+- Purpose
+- Location
+- Access method
+- Dependencies
+- Related systems
+- User value
+
+Answer:
+
+What capabilities currently exist?
+
+---
+
+7. PROJECT_GLOSSARY.md
+
+Define:
+
+- Internal concepts
+- System names
+- Protection terminology
+- Bayesian terminology
+- Technical vocabulary
+- Custom project terms
+
+Answer:
+
+What do important project terms mean?
+
+---
+
+8. DEVELOPER_GUIDE.md
+
+Document:
+
+- Development workflow
+- Coding expectations
+- Consistency requirements
+- Common mistakes
+- Best practices
+- Future contribution process
+
+Answer:
+
+How should future development be performed?
+
+---
+
+9. ARCHITECTURAL_DECISIONS.md
+
+For every major architectural decision document:
+
+- Decision ID
+- Description
+- Reasoning
+- Alternatives considered
+- Benefits
+- Trade-offs
+- Status
+
+Allowed statuses:
+
+- Proposed
+- Active
+- Deprecated
+- Replaced
+
+Never delete historical decisions.
+
+Answer:
+
+Why was this project built this way?
+
+---
+
+10. DECISION_FRAMEWORK.md
+
+Create a decision framework for future changes.
+
+Before introducing any feature or major change, answer:
+
+1. What problem does this solve?
+2. What evidence proves the problem exists?
+3. Is there a simpler solution?
+4. Does it support PROJECT_VISION.md?
+5. Does it respect DESIGN_PRINCIPLES.md?
+6. Does the value justify the added complexity?
+7. What is the maintenance cost after one year?
+8. Who benefits?
+9. Can an existing feature be improved instead?
+10. What are the risks of not implementing it?
+
+---
+
+11. LIVING_PROJECT_LOG.md
+
+This is the permanent project memory.
+
+Structure:
+
+- Current Project Status
+- Long-Term Vision
+- Active Objectives
+- Roadmap
+  - ⬜ Not Started
+  - ✅ Completed
+- Completed Milestones
+- Assumptions
+- Current Project Risks
+- Lessons Learned
+- Strategic Opportunities
+- Abandoned Ideas
+- Advice For Future Developers
+- Recommended Next Actions
+
+Rules:
+
+- Never delete completed tasks
+- Never erase history
+- Never replace old milestones
+- Convert ⬜ to ✅ when work is completed
+- Keep a permanent historical record
+- Update this document after major project changes
+
+Answer:
+
+Where were we, where are we now, and where are we going?
+
+---
+
+STRICT QUALITY RULE
+
+Documentation must be deeply specific to this repository.
+
+If a section could be copied into an unrelated repository without modification, it fails.
+
+Documentation must explicitly reference:
+
+- Real components
+- Real logic flows
+- Real modules
+- Real implementation choices
+
+Generic documentation, filler content, assumptions, speculation, and fluff are not acceptable.
+
+Only document what can be verified.

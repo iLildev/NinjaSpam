@@ -191,7 +191,9 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
             try:
                 if cfg.action == "kick":
-                    await chat.unban_member(user.id)   # unban = kick (leaves door open)
+                    # ban removes the user from the group; unban allows them to rejoin later
+                    await context.bot.ban_chat_member(chat.id, user.id)
+                    await context.bot.unban_chat_member(chat.id, user.id)
                     await message.reply_text(
                         t("age_gate_kicked", lang,
                           mention=mention,

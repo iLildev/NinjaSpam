@@ -14,6 +14,7 @@ submissions and stores outcomes.
 
 from __future__ import annotations
 
+import html
 import logging
 from datetime import datetime, timezone
 
@@ -196,6 +197,17 @@ async def _approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     appeal_id = int(appeal_id_str)
     user_id = int(user_id_str)
     chat_id = int(chat_id_str)
+
+    # Verify the clicker is actually an admin of the target chat
+    try:
+        clicker_member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
+        if clicker_member.status not in ("administrator", "creator"):
+            await query.answer("⛔ Only group admins can approve appeals.", show_alert=True)
+            return
+    except Exception:
+        await query.answer("⚠️ Could not verify your admin status.", show_alert=True)
+        return
+
     chat_lang = await get_chat_lang(chat_id)
 
     # Update appeal status
@@ -257,6 +269,17 @@ async def _reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     appeal_id = int(appeal_id_str)
     user_id = int(user_id_str)
     chat_id = int(chat_id_str)
+
+    # Verify the clicker is actually an admin of the target chat
+    try:
+        clicker_member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
+        if clicker_member.status not in ("administrator", "creator"):
+            await query.answer("⛔ Only group admins can reject appeals.", show_alert=True)
+            return
+    except Exception:
+        await query.answer("⚠️ Could not verify your admin status.", show_alert=True)
+        return
+
     chat_lang = await get_chat_lang(chat_id)
 
     async with get_session() as session:

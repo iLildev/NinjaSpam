@@ -308,7 +308,8 @@ async def enforce_locks(
     elif settings.url:
         from telegram import MessageEntity
         entities = message.entities or message.caption_entities or []
-        if any(e.type == MessageEntity.URL for e in entities):
+        _url_types = {MessageEntity.URL, MessageEntity.TEXT_LINK}
+        if any(e.type in _url_types for e in entities):
             should_delete = True
 
     if should_delete:

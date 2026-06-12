@@ -22,6 +22,7 @@ Commands (admin only):
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 from typing import Optional
@@ -246,7 +247,7 @@ async def nsfw_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not keywords:
             await message.reply_text("No custom NSFW keywords set.")
         else:
-            kw_list = "\n".join(f"• <code>{k}</code>" for k in sorted(keywords))
+            kw_list = "\n".join(f"• <code>{html.escape(k)}</code>" for k in sorted(keywords))
             await message.reply_html(f"<b>Custom NSFW keywords:</b>\n{kw_list}")
         return
 
@@ -265,11 +266,11 @@ async def nsfw_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
             )
             if exists.scalar_one_or_none():
-                await message.reply_text(f"<code>{word}</code> is already in the list.", parse_mode=ParseMode.HTML)
+                await message.reply_text(f"<code>{html.escape(word)}</code> is already in the list.", parse_mode=ParseMode.HTML)
                 return
             session.add(AntiNSFWKeyword(chat_id=chat.id, keyword=word))
             await session.commit()
-        await message.reply_html(f"✅ Added <code>{word}</code> to NSFW keyword list.")
+        await message.reply_html(f"✅ Added <code>{html.escape(word)}</code> to NSFW keyword list.")
 
     elif sub == "remove":
         async with get_session() as session:
@@ -281,9 +282,9 @@ async def nsfw_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             await session.commit()
             if result.rowcount == 0:
-                await message.reply_text(f"<code>{word}</code> is not in the list.", parse_mode=ParseMode.HTML)
+                await message.reply_text(f"<code>{html.escape(word)}</code> is not in the list.", parse_mode=ParseMode.HTML)
             else:
-                await message.reply_html(f"✅ Removed <code>{word}</code> from NSFW keyword list.")
+                await message.reply_html(f"✅ Removed <code>{html.escape(word)}</code> from NSFW keyword list.")
 
 
 # ---------------------------------------------------------------------------

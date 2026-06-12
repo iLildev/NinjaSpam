@@ -31,6 +31,7 @@ Notes:
 
 from __future__ import annotations
 
+import html
 import io
 import logging
 import uuid
@@ -253,7 +254,7 @@ async def leavefed(
         fed_name = fed.name if fed else chat_fed.fed_id
         await session.delete(chat_fed)
 
-    await message.reply_html(f"✅ Left federation <b>{fed_name}</b>.")
+    await message.reply_html(f"✅ Left federation <b>{html.escape(str(fed_name))}</b>.")
 
 
 # ---------------------------------------------------------------------------

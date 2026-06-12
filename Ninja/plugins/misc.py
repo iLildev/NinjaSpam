@@ -278,8 +278,8 @@ async def gdpr(
 
 async def register(application: Application) -> None:
     """Register misc commands."""
-    application.add_handler(CommandHandler("runs", runs))
-    application.add_handler(CommandHandler("slap", slap))
+    # NOTE: /runs and /slap are intentionally registered only in fun.py to
+    # avoid duplicate handlers sending two replies per command.
     application.add_handler(
         CommandHandler("echo", echo, filters=filters.User(cfg.OWNER_IDS))
     )

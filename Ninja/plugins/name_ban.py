@@ -38,12 +38,23 @@ from database.models_extra import NameBanPattern
 
 logger = logging.getLogger(__name__)
 
+# Cache compiled patterns to avoid recompiling on every message.
+_PATTERN_CACHE: dict[str, re.Pattern] = {}
+# Maximum regex pattern length to guard against ReDoS.
+_MAX_PATTERN_LEN = 120
+
 
 def _matches(pattern: str, is_regex: bool, text: str) -> bool:
     """Return True if text matches the pattern."""
     if is_regex:
+        if len(pattern) > _MAX_PATTERN_LEN:
+            return False
         try:
-            return bool(re.search(pattern, text, re.IGNORECASE))
+            compiled = _PATTERN_CACHE.get(pattern)
+            if compiled is None:
+                compiled = re.compile(pattern, re.IGNORECASE)
+                _PATTERN_CACHE[pattern] = compiled
+            return bool(compiled.search(text))
         except re.error:
             return False
     return pattern.lower() in text.lower()

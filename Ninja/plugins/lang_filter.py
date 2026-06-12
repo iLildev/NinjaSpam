@@ -63,7 +63,6 @@ def _count_arabic(text: str) -> int:
             or "\u0750" <= c <= "\u077F"  # Arabic Supplement
             or "\uFB50" <= c <= "\uFDFF"  # Arabic Presentation Forms-A
             or "\uFE70" <= c <= "\uFEFF"  # Arabic Presentation Forms-B
-            or "\u0600" <= c <= "\u06FF"  # Arabic
         )
     )
 

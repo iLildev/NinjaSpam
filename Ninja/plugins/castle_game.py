@@ -764,13 +764,13 @@ async def cmd_immunity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             diff = imm.active_until - now
             h, rem = divmod(int(diff.total_seconds()), 3600)
             m = rem // 60
-            # Deactivate — card is returned
+            # Deactivate — card is consumed (not returned); players cannot abuse
+            # activate→deactivate to farm free immunity time
             imm.active_until = None
-            imm.cards += 1
             msg = (
                 f"🛡️ Immunity has been <b>deactivated</b>.\n"
-                f"Remaining time: {h}h {m}m.\n"
-                f"Your card was returned — Balance: {imm.cards} cards."
+                f"Remaining time was: {h}h {m}m.\n"
+                f"Remaining Cards: {imm.cards}"
             )
         else:
             # Activate — consume one card
@@ -1276,8 +1276,12 @@ async def _alliance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await query.answer()
 
-    action, req_id_str = data.split(":")
-    req_id = int(req_id_str)
+    try:
+        action, req_id_str = data.split(":", 1)
+        req_id = int(req_id_str)
+    except (ValueError, AttributeError):
+        await query.edit_message_text("⚠️ Invalid request data.")
+        return
 
     async with get_session() as session:
         r = await session.execute(

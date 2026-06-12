@@ -518,6 +518,7 @@ async def register(application: Application) -> None:
         fallbacks=[CommandHandler("cancel", cmd_cancel)],
         per_chat=True,
         per_user=True,
+        conversation_timeout=300,
     )
 
     # ConversationHandler for deleting accounts
@@ -534,6 +535,7 @@ async def register(application: Application) -> None:
         fallbacks=[CommandHandler("cancel", cmd_cancel)],
         per_chat=True,
         per_user=True,
+        conversation_timeout=300,
     )
 
     application.add_handler(reg_conv,    group=0)

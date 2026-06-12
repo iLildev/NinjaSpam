@@ -712,6 +712,7 @@ async def register(application: Application) -> None:
         },
         fallbacks=[CommandHandler("cancel", cmd_transfer_cancel)],
         per_message=False,
+        conversation_timeout=120,
     )
 
     application.add_handler(CommandHandler("richlist",  cmd_richlist))

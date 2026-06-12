@@ -75,7 +75,7 @@ CATEGORIES: dict[str, tuple[str, str, list[tuple[str, str]]]] = {
             ("/resetwarn [@user]",             "Remove last warning"),
             ("/warns [@user]",                 "Show warn count"),
             ("/warnlimit <n>",                 "Set max warns before action"),
-            ("/strongwarn <on|off>",           "Toggle ban (on) vs kick/mute (off) at warn limit"),
+            ("/warnaction <ban|kick|mute>",    "Action taken when warn limit is reached"),
             ("/mute [@user]",                  "Mute a user indefinitely"),
             ("/unmute [@user]",                "Unmute a user"),
             ("/tmute [@user] <time>",          "Temporary mute (e.g. 30m, 1h)"),

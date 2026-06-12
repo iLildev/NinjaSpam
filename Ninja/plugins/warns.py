@@ -112,7 +112,7 @@ async def _do_warn(
     )
 
     cfg = await settings_repo.get(chat_id)
-    warn_action: WarnAction = cfg.warn_action if cfg else WarnAction.KICK
+    warn_action: WarnAction = cfg.warn_action if cfg else WarnAction.BAN
 
     mention = await _mention_from_id(context, user_id, update)
     reason_line = f"\n<b>Reason:</b> {html.escape(reason)}" if reason else ""
@@ -334,7 +334,7 @@ async def issue_warn(
 
     warn_count, warn_limit = await warns_repo.add(chat_id, user_id, issued_by=0, reason=reason)
     cfg = await settings_repo.get(chat_id)
-    warn_action = cfg.warn_action if cfg else WarnAction.KICK
+    warn_action = cfg.warn_action if cfg else WarnAction.BAN
 
     mention = f'<a href="tg://user?id={user_id}">{user_id}</a>'
     reason_text = f" — Reason: {reason}" if reason else ""
@@ -391,13 +391,64 @@ async def warn_limit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 # ---------------------------------------------------------------------------
-# /strongwarn — Redirect to /settings
+# /warnaction <ban|kick|mute> — Set per-chat action at warn limit
+# ---------------------------------------------------------------------------
+
+_WARN_ACTION_MAP = {
+    "ban":  WarnAction.BAN,
+    "kick": WarnAction.KICK,
+    "mute": WarnAction.MUTE,
+}
+
+@user_admin
+async def warn_action_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    /warnaction <ban|kick|mute>
+    Set the action taken when a user reaches their warning limit.
+    """
+    message = update.effective_message
+    chat = update.effective_chat
+    args = context.args or []
+
+    if not args or args[0].lower() not in _WARN_ACTION_MAP:
+        async with get_session() as session:
+            cfg = await session.get(ChatFeatureSettings, chat.id)
+        current = cfg.warn_action.value if cfg else WarnAction.BAN.value
+        await message.reply_html(
+            f"⚠️ Usage: <code>/warnaction &lt;ban|kick|mute&gt;</code>\n"
+            f"Current action: <b>{current}</b>"
+        )
+        return
+
+    action = _WARN_ACTION_MAP[args[0].lower()]
+
+    async with get_session() as session:
+        cfg = await session.get(ChatFeatureSettings, chat.id)
+        if cfg is None:
+            from database.models import Chat as ChatModel
+            if not await session.get(ChatModel, chat.id):
+                session.add(ChatModel(id=chat.id, title=chat.title or ""))
+                await session.flush()
+            cfg = ChatFeatureSettings(chat_id=chat.id)
+            session.add(cfg)
+        cfg.warn_action = action
+
+    icons = {"ban": "🔨", "kick": "👢", "mute": "🔇"}
+    icon = icons[args[0].lower()]
+    await message.reply_html(
+        f"{icon} Warn action set to <b>{action.value}</b>.\n"
+        f"Users will be <b>{action.value}ned</b> upon reaching the warn limit."
+    )
+
+
+# ---------------------------------------------------------------------------
+# /strongwarn — Redirect to /warnaction
 # ---------------------------------------------------------------------------
 
 @user_admin
 async def strong_warn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_html(
-        "⚙️ To set the warning action, use /settings ← <b>Warnings</b>."
+        "⚙️ Use <code>/warnaction &lt;ban|kick|mute&gt;</code> to set the action at warn limit."
     )
 
 
@@ -579,8 +630,9 @@ async def register(application: Application) -> None:
     application.add_handler(CommandHandler("warn", warn, filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler("warns", warns, filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler(["resetwarn", "resetwarns"], reset_warns, filters=filters.ChatType.GROUPS))
-    application.add_handler(CommandHandler("warnlimit", warn_limit_cmd, filters=filters.ChatType.GROUPS))
-    application.add_handler(CommandHandler("strongwarn", strong_warn, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("warnlimit",  warn_limit_cmd,  filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("warnaction", warn_action_cmd, filters=filters.ChatType.GROUPS))
+    application.add_handler(CommandHandler("strongwarn", strong_warn,     filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler("addwarn", add_warn_filter, filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler(["nowarn", "stopwarn"], remove_warn_filter, filters=filters.ChatType.GROUPS))
     application.add_handler(CommandHandler(["warnlist", "warnfilters"], warn_filters_list, filters=filters.ChatType.GROUPS))

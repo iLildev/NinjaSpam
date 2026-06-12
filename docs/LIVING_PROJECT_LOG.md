@@ -1,4 +1,4 @@
-# LIVING_PROJECT_LOG.md
+# LIVING_PROJECT_LOG.md — Hozan Bot
 
 ## Where Were We, Where Are We Now, and Where Are We Going?
 
@@ -16,7 +16,9 @@ This is the permanent memory of the project. It must never be edited to look tid
 
 ## Current Project Status (as of June 12, 2026)
 
-The bot is fully operational on Replit. 105 of 106 plugins load successfully at runtime (the 1 "missing" load is `fun_strings.py`, which is a data module by design — not a plugin). The bot connects to the Replit-provisioned PostgreSQL database via asyncpg. All core systems are functional: moderation, protection pipeline, games, economy, federation, and CAPTCHA.
+Hozan Bot is fully operational on Replit. 105 of 106 plugins load successfully at runtime (the 1 "missing" load is `fun_strings.py`, which is a data module by design — not a plugin). The bot connects to the Replit-provisioned PostgreSQL database via asyncpg. All core systems are functional: moderation, protection pipeline, games, economy, federation, and CAPTCHA.
+
+The bot is global and English-only. Documentation has been updated to reflect this.
 
 The documentation system has just been created (PHASE 1 audit + PHASE 2 documentation). No code has been modified during the documentation phase.
 
@@ -39,11 +41,11 @@ The documentation system has just been created (PHASE 1 audit + PHASE 2 document
 
 ## Long-Term Vision
 
-Ninja Bot should become the definitive open-source Arabic-language Telegram group management bot. It should be:
+Hozan Bot should become the definitive open-source global Telegram group management bot. It should be:
 - **Fully self-documenting** — any new developer or AI agent can understand the entire system from `docs/` alone, without requiring access to the original author's history or conversations.
 - **100% database-backed** — no persistent state stored in in-memory structures or flat files. Full survivability across restarts and deployments.
 - **Architecturally consistent** — all plugins follow the same patterns: repository layer, ChatFeatureSettings for toggles, game_wallet.py for coins, HTML parse mode.
-- **Community-tested** — features validated by real Arabic-speaking Telegram communities, with user feedback integrated into the roadmap.
+- **Community-tested** — features validated by real Telegram communities worldwide, with user feedback integrated into the roadmap.
 - **Extensible by anyone** — a developer unfamiliar with the project can add a new feature by reading only `DEVELOPER_GUIDE.md` and following its templates.
 
 ---
@@ -103,7 +105,7 @@ Ninja Bot should become the definitive open-source Arabic-language Telegram grou
 - ⬜ **[TD-007]** Verify Privileged Group Intents for `couples.py`
 - ⬜ **[TD-008]** Re-upload GIF/sticker file IDs in `fun_strings.py` using active bot token
 - ⬜ Add SpamWatch token to Replit secrets (activates SpamWatch global ban database)
-- ⬜ Standardise all user-facing English text to Arabic (chatbot.py, settings_panel English labels)
+- ⬜ Audit all plugins for any non-English user-facing text and replace with English
 - ⬜ Deprecate standalone commands that duplicate `/settings` panel functionality
 - ⬜ Resolve dual CAPTCHA overlap (standard vs adaptive — clarify which takes precedence on join)
 
@@ -130,7 +132,7 @@ These are the foundational assumptions under which the project operates. Unrecor
 
 3. **Replit PostgreSQL is durable**: The Replit-provisioned PostgreSQL instance is treated as production-grade durable storage. If Replit changes their database offering, a migration plan is required.
 
-4. **Arabic is the dominant language**: Over 90% of users are Arabic-speaking. English-only content in user-facing messages is a bug, not an acceptable default.
+4. **English is the only language**: Hozan is a global bot. All user-facing messages, menus, and game text must be in English. Any non-English content in user-facing output is a bug.
 
 5. **Groups are supergroups**: All group-specific features assume Telegram supergroups (not legacy basic groups). Features like topics, admin permissions, and member counts behave differently in basic groups.
 
@@ -176,7 +178,7 @@ These are the foundational assumptions under which the project operates. Unrecor
 
 | Risk | Description |
 |------|-------------|
-| English-only messages in some plugins | Users may not understand captcha text words (WELCOME, CONFIRM, etc.) — currently English |
+| Non-English messages in some plugins | Some plugins may still contain Arabic text — must be audited and replaced with English |
 | Dual CAPTCHA plugins active simultaneously | Adaptive captcha and standard captcha both handle new member joins — unclear precedence |
 | Command duplication | `/warnlimit` and settings panel both control warn limit — users may not know which is canonical |
 | Chatbot state loss on restart | Users who enabled chatbot will find it disabled after every restart until TD-001 is resolved |
@@ -201,7 +203,7 @@ These are the foundational assumptions under which the project operates. Unrecor
 
 4. **The plugin loader's resilience is a double-edged sword.** It prevents one broken plugin from crashing the bot, but it also means a failed plugin load is easy to miss. Monitoring the startup logs is important — a WARNING about a plugin load failure is not the same as it being intentionally skipped.
 
-5. **CAPTCHA text challenge uses English words in an Arabic-first bot.** The text CAPTCHA word list (`_TEXT_WORDS` in `captcha.py`) contains English words like "WELCOME", "CONFIRM", "VERIFIED". This works mechanically but is culturally inconsistent in an Arabic-primary bot. Future improvements should add Arabic word options.
+5. **CAPTCHA text challenge uses English words — correct for a global English bot.** The text CAPTCHA word list (`_TEXT_WORDS` in `captcha.py`) contains English words like "WELCOME", "CONFIRM", "VERIFIED". This is the intended standard for Hozan. No Arabic alternatives needed.
 
 6. **Alembic `upgrade head` at startup is the right pattern for Replit.** Since Replit doesn't have a separate migration step, calling `alembic upgrade head` in `main.py::init_db()` ensures schema is always current on startup. This is safe because Alembic migrations are idempotent — running an already-applied migration is a no-op.
 
@@ -222,12 +224,12 @@ These are the foundational assumptions under which the project operates. Unrecor
 
 ---
 
-### OPP-002 — Arabic CAPTCHA Text Words
-**Description:** The text CAPTCHA mode uses English words (`WELCOME`, `CONFIRM`, etc.). Adding Arabic word options would make the CAPTCHA more natural for Arabic-speaking users.  
-**Expected benefit:** Better user experience for Arabic users unfamiliar with English.  
+### OPP-002 — CAPTCHA Text Word Expansion
+**Description:** The text CAPTCHA mode uses a small set of English words (`WELCOME`, `CONFIRM`, etc.). Expanding the word list with more English options increases variety and reduces predictability.  
+**Expected benefit:** Harder for bots to pre-solve the CAPTCHA.  
 **Expected impact:** Low-Medium  
-**Complexity:** Low (add Arabic strings to `_TEXT_WORDS` list)  
-**Priority:** Medium  
+**Complexity:** Low (add words to `_TEXT_WORDS` list in `captcha.py`)  
+**Priority:** Low  
 **Dependencies:** None  
 **Status:** Not started
 
@@ -330,7 +332,7 @@ In recommended priority order:
 
 8. **[MEDIUM]** Move `fun_strings.py` to `core/fun_data.py` and update `fun.py` import, eliminating the startup WARNING.
 
-9. **[LOW]** Add Arabic words to CAPTCHA text challenge word list (OPP-002).
+9. **[LOW]** Expand CAPTCHA text word list with more English options (OPP-002).
 
 10. **[LOW]** Re-upload `fun_strings.py` GIF/sticker file IDs with active bot token (OPP-006).
 

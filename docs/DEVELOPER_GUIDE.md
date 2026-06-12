@@ -2,7 +2,7 @@
 
 ## How Does a Developer Work on This Project?
 
-This guide covers everything a developer needs to understand, run, extend, and debug Ninja Bot. No prior knowledge of the project is assumed.
+This guide covers everything a developer needs to understand, run, extend, and debug Hozan Bot. No prior knowledge of the project is assumed.
 
 ---
 
@@ -60,7 +60,7 @@ python main.py
 
 ## 3. Replit-Specific Setup
 
-In Replit, use the "Ninja Bot" workflow which runs:
+In Replit, use the "Ninja Bot" workflow (internal name) which runs:
 ```
 cd Ninja && pip install -r requirements.txt -q && python main.py
 ```
@@ -105,11 +105,11 @@ async def my_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Group-only guard (if needed):
     if chat.type == "private":
-        await message.reply_text("⚠️ هذا الأمر يعمل فقط داخل المجموعات.")
+        await message.reply_text("⚠️ This command only works inside groups.")
         return
 
     # Your logic here
-    await message.reply_text(f"مرحباً {user.first_name}!")
+    await message.reply_text(f"Hello {user.first_name}!")
 
 
 async def register(application: Application) -> None:
@@ -123,7 +123,7 @@ async def register(application: Application) -> None:
 3. **Use `@user_admin`** decorator for admin-only commands
 4. **Use `get_session()`** for all database access
 5. **Use `core/game_wallet.py`** for any coin transactions
-6. **Arabic text** for all user-facing messages
+6. **English text** for all user-facing messages
 7. **HTML parse mode** — use `<b>`, `<code>` tags, not Markdown
 8. **Call `logger.info()` at end of `register()`** to confirm loading
 
@@ -252,13 +252,13 @@ from core.game_wallet import add_coins, deduct_coins, get_wallet
 # Award coins:
 async with get_session() as session:
     wallet = await add_coins(session, user.id, 100)
-    await update.message.reply_text(f"🎉 فزت بـ 100 عملة! رصيدك: {wallet.coins}")
+    await update.message.reply_text(f"🎉 You won 100 coins! Balance: {wallet.coins}")
 
 # Deduct coins (with insufficient-funds check):
 async with get_session() as session:
     wallet = await deduct_coins(session, user.id, 50)
     if wallet is None:
-        await update.message.reply_text("❌ رصيدك غير كافٍ.")
+        await update.message.reply_text("❌ Insufficient balance.")
         return
 ```
 
@@ -287,7 +287,7 @@ from config import settings
 
 async def my_owner_command(update, context):
     if update.effective_user.id not in settings.OWNER_IDS:
-        await update.message.reply_text("❌ هذا الأمر للمالك فقط.")
+        await update.message.reply_text("❌ This command is for the owner only.")
         return
     ...
 ```

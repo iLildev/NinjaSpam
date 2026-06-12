@@ -2,23 +2,23 @@
 
 ## How Should the User Experience Remain Consistent?
 
-This document is the official UX standard for Ninja Bot. Every new feature, every modified command, and every new interaction pattern must conform to these rules. Deviating from these rules requires a documented decision in `ARCHITECTURAL_DECISIONS.md`.
+This document is the official UX standard for Hozan Bot. Every new feature, every modified command, and every new interaction pattern must conform to these rules. Deviating from these rules requires a documented decision in `ARCHITECTURAL_DECISIONS.md`.
 
 ---
 
 ## 1. Language Rules
 
-### 1.1 Arabic Is the Default Language
-All user-facing text must be in Arabic unless the feature is explicitly developer-only (eval, dev_cmds, health check).
+### 1.1 English Is the Only Language
+All user-facing text must be in English. Hozan is a global bot — every message, menu label, error, and game prompt must be in English without exception.
 
-- ✅ `"🔒 أنت في السجن!"`
-- ❌ `"You are in jail!"`
+- ✅ `"🔒 You are in jail!"`
+- ❌ Any non-English text in user-facing output
 
 ### 1.2 Command Names Are in English (Telegram Convention)
-Telegram commands must use ASCII-only names. Arabic labels in menus and `/help` are acceptable, but the command itself (`/warn`, `/mute`, `/balance`) must be English.
+Telegram commands must use ASCII-only names. The command itself (`/warn`, `/mute`, `/balance`) must be English, as must all labels, buttons, and inline menus.
 
-### 1.3 Numbers Use Arabic Numerals in Messages
-- ✅ `"رصيدك: 1,500 عملة"`
+### 1.3 Numbers Use Standard Western Numerals
+- ✅ `"Your balance: 1,500 coins"`
 - Do not use Arabic-Indic numerals (٠١٢...) in bot output.
 
 ---
@@ -34,10 +34,10 @@ The PTB Application is configured with `parse_mode=ParseMode.HTML`. All plugins 
 ### 2.2 Separator Lines in Action Messages
 Moderation action messages (ban, mute, warn, etc.) use a consistent separator:
 ```
-⚠️ <b>تحذير</b>
+⚠️ <b>Warning</b>
 ━━━━━━━━━━━━━━━
-👤 <b>المستخدم:</b> ...
-👮 <b>بواسطة:</b> ...
+👤 <b>User:</b> ...
+👮 <b>By:</b> ...
 ```
 
 ### 2.3 Emoji Prefixes for Message Categories
@@ -60,20 +60,20 @@ Moderation action messages (ban, mute, warn, etc.) use a consistent separator:
 ## 3. Navigation Rules
 
 ### 3.1 Every Inline Menu Must Have a Back Button
-Any inline keyboard that opens a submenu must include a `🔙 رجوع` (Back) button that returns to the parent menu. Do not leave users stranded in a submenu.
+Any inline keyboard that opens a submenu must include a `🔙 Back` button that returns to the parent menu. Do not leave users stranded in a submenu.
 
 ### 3.2 Confirmation for Destructive Actions
 Actions that cannot be undone (delete federation, reset all warns, clear all notes) must present an inline confirmation button before executing:
 ```
-هل أنت متأكد؟
-[✅ نعم، تأكيد]  [❌ إلغاء]
+Are you sure?
+[✅ Yes, confirm]  [❌ Cancel]
 ```
 
 ### 3.3 Message Editing Over New Messages
 When a user interaction results in a follow-up response, prefer editing the existing message over sending a new one. Use `query.edit_message_text()` in callback handlers wherever practical. This reduces clutter.
 
 ### 3.4 Cancel Buttons in Conversations
-Every `ConversationHandler` flow (registration, adding payment method, etc.) must include a `/cancel` command and a visible `❌ إلغاء` inline button that ends the conversation cleanly.
+Every `ConversationHandler` flow (registration, adding payment method, etc.) must include a `/cancel` command and a visible `❌ Cancel` inline button that ends the conversation cleanly.
 
 ---
 
@@ -82,13 +82,13 @@ Every `ConversationHandler` flow (registration, adding payment method, etc.) mus
 ### 4.1 Group-Only Commands
 Commands that require a group context must check for `update.effective_chat.type == "private"` and respond:
 ```python
-"⚠️ هذا الأمر يعمل فقط داخل المجموعات."
+"⚠️ This command only works inside groups."
 ```
 
 ### 4.2 Private-Only Commands
 Commands that require a private chat (registration, account management) must check accordingly:
 ```python
-"⚠️ هذا الأمر يعمل فقط في المحادثة الخاصة."
+"⚠️ This command only works in private chat."
 ```
 
 ### 4.3 Admin-Only Commands
@@ -97,7 +97,7 @@ Commands requiring admin privileges must use the `@user_admin` decorator from `c
 ### 4.4 Usage Hints on Bad Input
 When a command is called without required arguments, reply with a usage example using `<code>` tags:
 ```
-⚠️ الاستخدام: <code>/warn @username سبب</code>
+⚠️ Usage: <code>/warn @username reason</code>
 ```
 
 ---
@@ -126,7 +126,7 @@ Any callback that triggers a privileged action must re-verify admin status:
 ```python
 member = await chat.get_member(user.id)
 if member.status not in ("creator", "administrator"):
-    await query.answer("للمشرفين فقط.", show_alert=True)
+    await query.answer("Admins only.", show_alert=True)
     return
 ```
 
@@ -142,9 +142,9 @@ If a setting is configurable via the `/settings` inline panel, it should NOT als
 ### 6.2 Settings Show Current Value
 Every settings menu must display the current value of each toggle before the user changes it:
 ```
-🔔 الكابتشا: ✅ مفعّل
-الإجراء: حذف + تحذير
-النوع: زر
+🔔 CAPTCHA: ✅ Enabled
+Action: Delete + Warn
+Type: Button
 ```
 
 ---
@@ -171,7 +171,7 @@ Commands restricted to `OWNER_IDS` (eval, dev_cmds, broadcast, leave) must not a
 ### 8.1 Never Silently Fail on User-Facing Actions
 If a moderation action fails (BadRequest, Forbidden), inform the admin:
 ```python
-await message.reply_text(f"⚠️ فشل الكتم: <code>{exc.message}</code>")
+await message.reply_text(f"⚠️ Mute failed: <code>{exc.message}</code>")
 ```
 
 ### 8.2 Log Errors to Console

@@ -66,13 +66,13 @@ Enabled/disabled feature states must survive a bot restart. Using in-memory sets
 
 ---
 
-## Principle 7 — Arabic-First Interface
+## Principle 7 — English as the Global Interface Language
 
-**User-facing messages, game content, and error strings default to Arabic.**
+**All user-facing messages, game content, and error strings are in English.**
 
-The primary user base is Arabic-speaking. All game text, economy messages, error responses, and interactive menus should be written in Arabic. English-only text in user-facing output is a UX inconsistency to be resolved over time.
+Hozan is a global bot with a worldwide user base. All game text, economy messages, error responses, and interactive menus must be written in English. This ensures consistency and accessibility across all communities.
 
-*Applies to:* All plugins serving regular members. Owner/developer-only commands (eval, dev_cmds) may remain in English.
+*Applies to:* All plugins serving regular members and administrators alike.
 
 ---
 

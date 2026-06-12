@@ -2,7 +2,7 @@
 
 ## Why Was the System Built This Way?
 
-This document records every significant architectural decision made during the design and development of Ninja Bot. Each decision explains the problem being solved, the options considered, what was chosen, and why. Future developers must understand these decisions before proposing changes.
+This document records every significant architectural decision made during the design and development of Hozan Bot. Each decision explains the problem being solved, the options considered, what was chosen, and why. Future developers must understand these decisions before proposing changes.
 
 ---
 
@@ -227,7 +227,7 @@ Both are in active use. The repository pattern is strictly better but only cover
 **Date:** Spam filter design  
 **Status:** Active
 
-**Problem:** Arabic group spam differs significantly from English spam. A global classifier trained on mixed data would perform poorly for any individual community. A spam message for one community may be perfectly normal in another.
+**Problem:** Spam patterns differ significantly between communities and languages. A global classifier trained on mixed data would perform poorly for any individual community. A spam message for one community may be perfectly normal in another.
 
 **Decision:** Each group trains its own per-chat Bayes classifier using `BayesianToken` rows scoped to `chat_id`.
 

@@ -129,9 +129,9 @@
 - **User Value:** Keeps multilingual groups focused on the intended language.
 
 ### Anti-Astro (`antiastro.py`)
-- **Purpose:** Blocks astrology/horoscope spam patterns common in Arabic groups.
+- **Purpose:** Blocks astrology/horoscope spam patterns common in certain communities.
 - **Access:** Toggle per group.
-- **User Value:** Stops a specific common Arabic spam category.
+- **User Value:** Stops a specific category of repetitive content spam.
 
 ### SpamWatch (`spamwatch.py`)
 - **Purpose:** Checks joining users against the SpamWatch global ban database.
@@ -534,8 +534,8 @@
 - **User Value:** Discover available commands.
 
 ### Fuzzy Commands (`fuzzy_commands.py`)
-- **Purpose:** Suggests correct Arabic command name when user types a close approximation.
-- **User Value:** Reduces friction for Arabic-speaking users unfamiliar with exact command names.
+- **Purpose:** Suggests the correct command name when a user types a close approximation (Levenshtein distance matching).
+- **User Value:** Reduces friction for users unfamiliar with exact command names.
 
 ---
 

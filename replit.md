@@ -1,37 +1,37 @@
-# Ninja Bot
+# Hozan Bot
 
-بوت تيليجرام لحماية وإدارة المجموعات مع ميزات ترفيهية (ألعاب ونظام نقود وهمي للتسلية).
+A global Telegram group management and entertainment bot. Supports group protection, moderation, games, and a virtual economy — all in English.
 
-## تشغيل البوت
-
-```
-cd tgbot && pip install -r requirements.txt -q && python main.py
-```
-
-## المتطلبات
-
-- `BOT_TOKEN` — توكن البوت من @BotFather
-- `DATABASE_URL` — رابط قاعدة بيانات PostgreSQL
-- `OWNER_IDS` — معرّف المالك على تيليجرام
-
-## هيكل المشروع
+## Run the Bot
 
 ```
-tgbot/
-├── main.py               # نقطة الدخول
-├── config.py             # الإعدادات من متغيرات البيئة
-├── plugins/              # جميع الإضافات (70 إضافة)
-├── database/             # نماذج SQLAlchemy وإعداد قاعدة البيانات
-├── core/                 # محمّل الإضافات ومعالج الأخطاء
-└── locales/              # ملفات الترجمة
+cd Ninja && pip install -r requirements.txt -q && python main.py
 ```
 
-## الإضافات الرئيسية
+## Requirements
 
-- **الحماية**: antispam، captcha، antiraid، cas_check، global_bans
-- **الإدارة**: bans، muting، warns، locks، admin، federation
-- **الترفيه**: ninja_game، farm_game، castle_game، wallet (نقود وهمية)
-- **الأدوات**: notes، filters، rules، rss، scheduler
+- `BOT_TOKEN` — Bot token from @BotFather
+- `DATABASE_URL` — PostgreSQL connection string (auto-provided by Replit)
+- `OWNER_IDS` — Owner's Telegram user ID
+
+## Project Structure
+
+```
+Ninja/
+├── main.py               # Entry point
+├── config.py             # Configuration from environment variables
+├── plugins/              # All plugins (105 loaded)
+├── database/             # SQLAlchemy models and DB setup
+├── core/                 # Plugin loader, error handler, shared utilities
+└── locales/              # Translation files
+```
+
+## Key Plugin Categories
+
+- **Protection**: antispam, captcha, antiraid, cas_check, global_bans
+- **Moderation**: bans, muting, warns, locks, admin, federation
+- **Entertainment**: ninja_game, farm_game, castle_game, wallet (virtual coins)
+- **Utilities**: notes, filters, rules, rss, scheduler
 
 ## Stack
 
@@ -42,4 +42,4 @@ tgbot/
 
 ## User preferences
 
-_يُعبّأ عند الحاجة._
+_To be filled as needed._

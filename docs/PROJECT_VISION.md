@@ -2,13 +2,13 @@
 
 ## Why Does This Project Exist?
 
-Ninja Bot exists to give Arabic-speaking Telegram group administrators a single, self-contained moderation and entertainment platform that eliminates the need to run multiple specialized bots in parallel. Most Arabic communities rely on combinations of Rose Bot (management), Shieldy (CAPTCHA), CAS (spam), and separate game bots. Ninja consolidates all of these roles into one bot that the community controls end-to-end.
+Hozan Bot exists to give Telegram group administrators worldwide a single, self-contained moderation and entertainment platform that eliminates the need to run multiple specialized bots in parallel. Communities typically rely on combinations of Rose Bot (management), Shieldy (CAPTCHA), CAS (spam), and separate game bots. Hozan consolidates all of these roles into one bot that the community controls end-to-end.
 
 ---
 
 ## Project Purpose
 
-Ninja Bot is a Telegram group management bot built for Arabic-speaking communities. It provides:
+Hozan Bot is a global Telegram group management bot. It provides:
 
 1. **Layered spam and intrusion protection** — CAS integration, Bayesian AI spam classification, regex/word-list filters, CAPTCHA verification, flood control, homoglyph detection, phishing detection, duplicate message detection, and more — all independently configurable per group.
 2. **Full moderation toolchain** — bans, mutes, warns, locks, purges, federations, global bans — with audit logging to a designated log channel.
@@ -26,7 +26,7 @@ Ninja Bot is a Telegram group management bot built for Arabic-speaking communiti
 | **Regular Group Member** | End users who interact with games, economy, and entertainment features |
 | **Bot Owner (Developer)** | The operator of the bot instance — has access to sudo/owner commands |
 
-Primary audience: **Arabic-speaking** Telegram communities (the bot interface, game system, and economy are Arabic-first).
+Primary audience: **Global** Telegram communities. The bot interface, game system, and economy are in English.
 
 ---
 
@@ -55,7 +55,7 @@ Primary audience: **Arabic-speaking** Telegram communities (the bot interface, g
 
 ## Long-Term Mission
 
-To be the definitive open-source Telegram management bot for Arabic communities — fully self-hosted, modular, documented, and maintainable by any future developer or AI agent without requiring any prior knowledge of the project's history.
+To be the definitive open-source global Telegram management bot — fully self-hosted, modular, documented, and maintainable by any future developer or AI agent without requiring any prior knowledge of the project's history.
 
 ---
 

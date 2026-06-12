@@ -2,7 +2,7 @@
 
 ## How Should Future Decisions Be Made?
 
-This document provides reusable frameworks for making consistent decisions when building or modifying Ninja Bot. Use it as a checklist before committing to any approach.
+This document provides reusable frameworks for making consistent decisions when building or modifying Hozan Bot. Use it as a checklist before committing to any approach.
 
 ---
 
@@ -82,17 +82,19 @@ Is this a boolean on/off toggle?
 
 ---
 
-## Framework 5 — Should This Be Arabic or English?
+## Framework 5 — Language Standard
+
+All content in Hozan Bot is in English. This is a global bot with a global audience.
 
 | Content Type | Language | Rationale |
 |-------------|----------|-----------|
-| User-facing messages (regular members) | Arabic | Primary user base |
-| Error messages for regular members | Arabic | Accessibility |
-| Admin commands and their responses | Arabic | Admins are part of the community |
-| Game text, rewards, prompts | Arabic | Immersion |
-| Owner/developer-only commands | English acceptable | These users are developers |
-| Log channel audit messages | Arabic or bilingual | Admins read these |
-| Code comments and docstrings | English or Arabic | Developer preference |
+| User-facing messages (regular members) | English | Global bot, global audience |
+| Error messages for regular members | English | Consistency |
+| Admin commands and their responses | English | Universal accessibility |
+| Game text, rewards, prompts | English | Consistent experience |
+| Owner/developer-only commands | English | No exception |
+| Log channel audit messages | English | Admins read these |
+| Code comments and docstrings | English | Developer standard |
 | Documentation files | English | Universal developer accessibility |
 | Command names (e.g., `/warn`) | English only | Telegram API constraint |
 
@@ -171,7 +173,7 @@ Before any new plugin or feature modification is complete, verify:
 
 - [ ] Plugin file has a module docstring listing all commands and their descriptions
 - [ ] `async def register(application)` is implemented and called `logger.info()` to confirm load
-- [ ] User-facing messages are in Arabic
+- [ ] User-facing messages are in English
 - [ ] HTML parse mode used (not Markdown)
 - [ ] Admin-only commands use `@user_admin` decorator (not manual checks)
 - [ ] Database operations use `async with get_session() as session:` pattern
